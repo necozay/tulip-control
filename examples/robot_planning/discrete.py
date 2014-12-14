@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# robot_discrete.py - example using transition system dynamics
+# discrete.py - example using transition system dynamics
 #
 # RMM, 20 Jul 2013
 """
@@ -13,6 +13,12 @@ transition system.
 # strings of the form @label@ are used for this purpose.
 #
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logging.getLogger('tulip.spec.lexyacc').setLevel(logging.WARNING)
+logging.getLogger('tulip.synth').setLevel(logging.DEBUG)
+logging.getLogger('tulip.interfaces.gr1c').setLevel(logging.DEBUG - 3)
+
 # @import_section@
 # Import the packages that we need
 from tulip import transys, spec, synth
@@ -22,7 +28,7 @@ from tulip import transys, spec, synth
 # System dynamics
 #
 # The system is modeled as a discrete transition system in which the
-# robot can be located anyplace no a 2x3 grid of cells.  Transitions
+# robot can be located anyplace on a 2x3 grid of cells.  Transitions
 # between adjacent cells are allowed, which we model as a transition
 # system in this example (it would also be possible to do this via a
 # formula)
@@ -38,7 +44,7 @@ from tulip import transys, spec, synth
 
 # @system_dynamics_section@
 # Create a finite transition system
-sys = transys.FTS()          
+sys = transys.FTS()
 
 # Define the states of the system
 sys.states.add_from(['X0', 'X1', 'X2', 'X3', 'X4', 'X5'])
@@ -69,7 +75,7 @@ sys.states.add('X5', ap={'lot'})
 #
 # Environment variables and specification
 #
-# The environment can issue a park signal that the robot just respond
+# The environment can issue a park signal that the robot must respond
 # to by moving to the lower left corner of the grid.  We assume that
 # the park signal is turned off infinitely often.
 #
@@ -80,13 +86,13 @@ env_prog = '!park'
 env_safe = set()                # empty set
 # @environ_section_end@
 
-# 
+#
 # System specification
 #
 # The system specification is that the robot should repeatedly revisit
 # the upper right corner of the grid while at the same time responding
 # to the park signal by visiting the lower left corner.  The LTL
-# specification is given by 
+# specification is given by
 #
 #     []<> home && [](park -> <>lot)
 #
@@ -94,17 +100,17 @@ env_safe = set()                # empty set
 # variable X0reach that is initialized to True and the specification
 # [](park -> <>lot) becomes
 #
-#     [](next(X0reach) <-> lot || (X0reach && !park))
+#     [](X (X0reach) <-> lot || (X0reach && !park))
 #
 
 # @specs_setup_section@
 # Augment the system description to make it GR(1)
 #! TODO: create a function to convert this type of spec automatically
-sys_vars = {'X0reach'}          # infer the rest from TS 
-sys_init = {'X0reach'}          
+sys_vars = {'X0reach'}          # infer the rest from TS
+sys_init = {'X0reach'}
 sys_prog = {'home'}             # []<>home
 sys_safe = {'(X (X0reach) <-> lot) || (X0reach && !park)'}
-sys_prog |= {'X0reach'} 
+sys_prog |= {'X0reach'}
 # @specs_setup_section_end@
 
 # @specs_create_section@
@@ -120,7 +126,7 @@ specs = spec.GRSpec(env_vars, sys_vars, env_init, sys_init,
 # methods.  Here we make use of JTLV.
 #
 # @synthesize@
-ctrl = synth.synthesize('gr1c', specs, sys=sys)
+ctrl = synth.synthesize('jtlv', specs, sys=sys)
 # @synthesize_end@
 
 #
