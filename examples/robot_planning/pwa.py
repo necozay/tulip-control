@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-#
-# WARNING: This example may not yet be working.  Please check again in
-#          the upcoming release.
-#
 """
 This example is an extension of the robot_continuous.py
 code by Petter Nilsson and Nok Wongpiromsarn.
@@ -136,7 +132,7 @@ specs = spec.GRSpec(env_vars, sys_vars, env_init, sys_init,
                     env_safe, sys_safe, env_prog, sys_prog)
 
 # Synthesize
-ctrl = synth.synthesize('jtlv', specs,
+ctrl = synth.synthesize('gr1c', specs,
                         sys=disc_dynamics.ts, ignore_sys_init=True)
 if plotting:
     ax = plot_strategy(disc_dynamics, ctrl)

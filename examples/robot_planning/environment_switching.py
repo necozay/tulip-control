@@ -1,6 +1,3 @@
-# WARNING: This example may not yet be working.  Please check again in
-#          the upcoming release.
-#
 # This is an example to demonstrate how the output of the TuLiP discretization 
 # for a system with uncontrollable switching (i.e., modes are controlled by the
 # environment) might look like.
@@ -123,9 +120,9 @@ specs = spec.GRSpec(env_vars, sys_vars, env_init, sys_init,
 # Controller synthesis
 #
 # At this point we can synthesize the controller using one of the available
-# methods.  Here we make use of JTLV.
+# methods.  Here we make use of gr1c.
 #
-ctrl = synth.synthesize('jtlv', specs, sys=sys_swe, ignore_sys_init=True)
+ctrl = synth.synthesize('gr1c', specs, sys=sys_swe, ignore_sys_init=True)
 
 # @plot_print@
 if not ctrl.save('environment_switching.png'):

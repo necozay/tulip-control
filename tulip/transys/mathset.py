@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014 by California Institute of Technology
+# Copyright (c) 2013-2015 by California Institute of Technology
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,14 @@
 # SUCH DAMAGE.
 """Mathematical Sets and Power Sets"""
 import logging
-logger = logging.getLogger(__name__)
 import warnings
 from itertools import chain, combinations
 from collections import Iterable, Hashable, Container
 from pprint import pformat
 from random import randint
+
+
+logger = logging.getLogger(__name__)
 
 
 def compare_lists(list1, list2):
@@ -141,22 +143,6 @@ class MathSet(object):
         s = MathSet(self)
         s.add_from(other)
         return s
-
-    def cartesian(self, other):
-        """Return Cartesian product with other C{MathSet},
-
-        as CartesianProduct instance.
-        This representation is internally more efficient,
-        because it is implicit (product not explicitly stored).
-
-        See Also
-        ========
-        L{CartesianProduct}, L{__mul__}
-
-        UNDER DEVELOPMENT; function signature may change without
-        notice.  Calling will result in NotImplementedError.
-        """
-        raise NotImplementedError
 
     def __mul__(self, other):
         """Return the Cartesian product with another C{MathSet}.
@@ -762,11 +748,12 @@ class TypedDict(dict):
 
     def __init__(self, *args, **kwargs):
         self.update(*args, **kwargs)
+        self.allowed_values = dict()
 
     def __setitem__(self, i, y):
         """Raise ValueError if value y not allowed for key i."""
         valid_y = True
-        if i in self.allowed_values:
+        if hasattr(self, 'allowed_values') and i in self.allowed_values:
             valid_y = False
             if self.allowed_values[i] is None:
                 valid_y = True

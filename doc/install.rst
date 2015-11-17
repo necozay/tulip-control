@@ -10,30 +10,19 @@ use the core functionality of TuLiP:
 
 * `NumPy <http://numpy.org/>`_
 * `SciPy <http://www.scipy.org/>`_
-* `CVXOPT <http://abel.ee.ucla.edu/cvxopt/>`_
 * `NetworkX <http://networkx.lanl.gov/>`_
-* `ply <http://www.dabeaz.com/ply/>`_
-* `polytope <https://pypi.python.org/pypi/polytope>`_
+* `PLY <http://www.dabeaz.com/ply/>`_
 
 Newcomers to scientific computing with Python should read
 :ref:`newbie-scipy-sec-label`.
 
-The default synthesis tool for GR[1] specifications is implemented by Yaniv
-Sa'ar `[BJPPS12] <bibliography.html#bjpps12>`_ and distributed with TuLiP.  To use it, you must have Java
-version 1.6 (or later) installed. An alternative GR[1] synthesis tool used by
-TuLiP is `gr1c <http://scottman.net/2012/gr1c>`_; if you use gr1c, please install
-at least version 0.9.0.
+The default synthesis tool for GR(1) specifications is `gr1c
+<http://scottman.net/2012/gr1c>`_. Please install at least version 0.9.0. If you
+do not already have it, the introduction of `the manual of gr1c
+<http://slivingston.github.io/gr1c/>`_ is a good place to begin.
 
-For computing discrete abstractions from hybrid system descriptions, it is
-highly recommended---but not required---that you install `GLPK
-<http://www.gnu.org/s/glpk/>`_ (a fast linear programming solver). Note that you
-need to install GLPK *before* installing CVXOPT and follow the instructions in
-CVXOPT installation to ensure it recognizes GLPK as a solver. If you are a
-`MacPorts <http://www.macports.org/>`_ user, please note that MacPorts does not
-do this linking automatically.
-
-Besides ``gr1c`` and ``GLPK`` mentioned above, the following are optional Python
-packages, listed with a summary of dependent features:
+The following are optional Python packages, listed with a summary of dependent
+features:
 
 * `Matplotlib <http://matplotlib.org/>`_ -- many visualization features
 
@@ -43,20 +32,95 @@ packages, listed with a summary of dependent features:
 * `Graphviz <http://www.graphviz.org/>`_ -- generation of images (e.g., PNG
   files) from dot code
 
+* `polytope <https://pypi.python.org/pypi/polytope>`_ -- computations on and
+  plotting of convex polytopes
+
+* `CVXOPT <http://cvxopt.org/>`_ -- construction and manipulation of discrete
+  abstractions
+
+For computing discrete abstractions from hybrid system descriptions, it is
+highly recommended---but not required---that you install `GLPK
+<http://www.gnu.org/s/glpk/>`_ (a fast linear programming solver). Note that you
+need to install GLPK *before* installing CVXOPT and follow the instructions in
+CVXOPT installation to ensure it recognizes GLPK as a solver. If you are a
+`MacPorts <http://www.macports.org/>`_ user, please note that MacPorts does not
+do this linking automatically.
+
 In previous versions of TuLiP, ``polytope`` was a subpackage of ``tulip``.  It
 is now a separate package, but for convenience, a copy is bundled with some
 releases of TuLiP.
 
-Once all of the above preparations are completed, you can install TuLiP.  As
-with most `Distutils <http://docs.python.org/install/index.html>`_-based
-packages, installation proceeds with::
+Once all of the above preparations are completed, you can install TuLiP::
 
-  $ python setup.py install
+  $ pip install .
 
-This script will also check for dependencies, i.e. look for NumPy, CVXOPT, etc.
-To only check for required and optional dependencies, but not install TuLiP, use ::
+To enforce dependencies that are required for using parts of TuLiP intended for
+hybrid systems, use ``pip install .[hybrid]``. (Your shell may try to parse
+``[`` and ``]``, causing the command to fail. If so, try ``pip install '.[hybrid]'``.)
+
+TuLiP may instead be installed `from PyPI <https://pypi.python.org/pypi/tulip>`_::
+
+  $ pip install tulip
+
+or, analogous to the above, ``pip install tulip[hybrid]``.
+
+The above commands include checking of dependencies and automatic installation
+of missing Python packages. (N.B., not all dependencies are Python packages.) To
+only check for required and optional dependencies, but not install TuLiP, use ::
 
   $ python setup.py dry-check
+
+
+.. _synt-tools-sec-label:
+
+Alternative discrete synthesis tools
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+While gr1c is required, as described in :doc:`install`, TuLiP can use other
+tools for formal synthesis. Those for which an interface is available are listed
+below. Also consult :doc:`specifications` concerning relevant syntax and
+summaries of the specification languages. Generally, direct interfaces are
+defined as modules in the subpackage ``tulip.interfaces``. However, these tools
+can be accessed indirectly by appropriately setting parameters for various
+functions in TuLiP, such as ``tulip.synth.synthesize()``.
+
+These are *optional dependencies*. TuLiP is useful without having them
+installed, but certain functionality is only available when they are.
+
+GR(1)
+`````
+
+* `slugs <https://github.com/LTLMoP/slugs>`_
+
+* a JTLV-based solver that has historically been included as part of the TuLiP
+  package itself. It was originally implemented by Yaniv Sa'ar `[BJPPS12]
+  <bibliography.html#bjpps12>`_.  To use it, you must have Java version 1.6 (or
+  later) installed. This tool can be obtained using the script
+  extern/get-jtlv.sh that is included in releases of TuLiP.
+
+LTL
+```
+
+* `Lily <http://www.iaik.tugraz.at/content/research/design_verification/lily/>`_,
+  which is based on `Wring <http://vlsi.colorado.edu/~rbloem/wring.html>`_.
+
+
+Testing your installation
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TuLiP is distributed with tests for itself that, like those for NumPy, provide a
+way to check that TuLiP is behaving as expected.  To perform basic tests that
+should pass on any TuLiP installation, from the command-line try ::
+
+  $ ./run_tests.py
+
+There is an extensive test suite that includes tests involving optional
+dependencies. To perform it, ``./run_tests.py full``. It is important to note
+that some tests may fail because an **optional** dependency is missing, not
+because the TuLiP installation itself is flawed. Use the flag "-h" to get a
+description of driver script options.  More details about testing TuLiP oriented
+for developers are provided in the :doc:`dev_guide`.
+
 
 .. _newbie-scipy-sec-label:
 
@@ -68,7 +132,7 @@ If you don't already use Python for scientific computing, consider using
 Canopy <https://www.enthought.com/products/canopy/>`_. This may make the
 installation process easier.  The EPD Free and Canopy Express distributions come
 with Python and includes NumPy, SciPy, matplotlib. EPD Free or Canopy Express
-together with networkx, cvxopt, and ply is sufficient to run TuLiP.
+together with networkx, cvxopt, and PLY is sufficient to run TuLiP.
 
 Alternatives to Enthought are listed on the `SciPy installation webpage
 <http://www.scipy.org/install.html>`_.  In particular, also try `Anaconda
@@ -76,18 +140,6 @@ Alternatives to Enthought are listed on the `SciPy installation webpage
 
 EPD seems to work fine on most platforms but if you cannot get it to work, more
 alternative packages for Mac OS X and Microsoft Windows are mentioned below.
-
-Testing your installation
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-TuLiP is distributed with tests for itself that, like those for NumPy, provide a
-way to check that TuLiP is behaving as expected.  To perform all tests from the
-command-line, try ::
-
-  $ ./run_tests.py
-
-Use the flag "-h" to see driver script options.  More details about testing
-TuLiP oriented for developers are provided in the :doc:`dev_guide`.
 
 .. _troubleshoot-sec-label:
 
@@ -123,8 +175,8 @@ To install the python package dependencies, try::
 
   $ sudo apt-get install python-numpy python-scipy python-cvxopt python-networkx python-ply
 
-Optionally packages can be obtained by appending ``python-matplotlib`` etc. to
-the above command.
+Optional packages can be obtained by appending ``python-matplotlib`` etc. to the
+above command.
 
 Mac OS X
 ````````
@@ -134,7 +186,7 @@ For installing SciPy, NumPy, consider trying
 <http://fonnesbeck.github.com/ScipySuperpack/>`_ by Chris Fonnesbeck.
 
 When installing CVXOPT using MacPorts, there are some compatibility issues
-case CVXOPT to fail to install.  The following customizations will link
+that cause CVXOPT to fail to install.  The following customizations will link
 numpy against Apple's implementation of LAPACK and BLAS and bypass this
 issue:
 
@@ -185,9 +237,9 @@ Installing other Python dependencies
 ````````````````````````````````````
 
 The command ``pip install ...`` or ``easy_install ...`` will usually suffice. To
-get `ply <http://www.dabeaz.com/ply/>`_, try::
+get `PLY <http://www.dabeaz.com/ply/>`_, try::
 
-  $ easy_install ply
+  $ pip install ply
 
 .. _venv-pydoc-sec-label:
 

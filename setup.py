@@ -8,6 +8,18 @@ import subprocess
 import sys
 import os
 
+
+classifiers = [
+    'Development Status :: 2 - Pre-Alpha',
+    'Intended Audience :: Science/Research',
+    'License :: OSI Approved :: BSD License',
+    'Operating System :: OS Independent',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 2',
+    'Programming Language :: Python :: 2.7',
+    'Topic :: Scientific/Engineering']
+
+
 ###########################################
 # Dependency or optional-checking functions
 ###########################################
@@ -34,6 +46,9 @@ def check_gr1c():
     except:
         return False
     return True
+
+def check_jtlv():
+    return os.path.exists(os.path.join('tulip', 'interfaces', 'jtlv_grgame.jar'))
 
 def check_java():
     try:
@@ -70,17 +85,32 @@ def check_pydot():
         return False
     return True
 
+def check_cvxopt():
+    try:
+        import cvxopt
+    except ImportError:
+        return False
+    return True
+
+def check_polytope():
+    try:
+        import polytope
+    except ImportError:
+        return False
+    return True
+
 # Handle "dry-check" argument to check for dependencies without
 # installing the tulip package; checking occurs by default if
 # "install" is given, unless both "install" and "nocheck" are given
 # (but typical users do not need "nocheck").
 
-java_msg = (
-    'java not found.\n'
-    "The jtlv synthesis tool included in the tulip distribution\n"
-    'will not be able to run. Unless the tool gr1c is installed,\n'
-    'it will not be possible to solve games.'
-)
+gr1c_msg = 'gr1c not found or of version prior to ' +\
+    ".".join([str(vs) for vs in GR1C_MIN_VERSION]) +\
+    '.\n' +\
+    'Unless you have some alternative synthesis tool installed,\n' +\
+    'it will not be possible to realize GR(1) specifications.\n' +\
+    'Consult installation instructions for gr1c at http://scottman.net/2012/gr1c\n' +\
+    'or the TuLiP User\'s Guide about alternatives.'
 
 # You *must* have these to run TuLiP.  Each item in other_depends must
 # be treated specially; thus other_depends is a dictionary with
@@ -90,16 +120,17 @@ java_msg = (
 #   values : list of callable and string, which is printed on failure
 #           (i.e. package not found); we interpret the return value
 #           True to be success, and False failure.
-other_depends = {'java': [check_java, 'Java  found.', java_msg]}
+other_depends = {'gr1c' : [check_gr1c, 'gr1c found.', gr1c_msg]}
 
 glpk_msg = 'GLPK seems to be missing\n' +\
-    'and thus apparently not used by your installation of CVXOPT.\n' +\
+    'and thus apparently not used by CVXOPT if you have it.\n' +\
     'If you\'re interested, see http://www.gnu.org/s/glpk/'
-gr1c_msg = 'gr1c not found or of version prior to ' +\
-    ".".join([str(vs) for vs in GR1C_MIN_VERSION]) +\
-    '.\n' +\
-    'If you\'re interested in a GR(1) synthesis tool besides JTLV,\n' +\
-    'see http://scottman.net/2012/gr1c'
+java_msg = (
+    'java not found.\n'
+    'The jtlv synthesis tool will not be able to run.\n'
+    'It is an optional alternative to gr1c,\n'
+    'the default GR(1) solver of TuLiP.'
+)
 mpl_msg = 'matplotlib not found.\n' +\
     'For many graphics drawing features in TuLiP, you must install\n' +\
     'matplotlib (http://matplotlib.org/).'
@@ -107,6 +138,12 @@ pydot_msg = 'pydot not found.\n' +\
     'Several graph image file creation and dot (http://www.graphviz.org/)\n' +\
     'export routines will be unavailable unless you install\n' +\
     'pydot (http://code.google.com/p/pydot/).'
+cvxopt_msg = 'cvxopt not found.\n' +\
+    'For routines treating hybrid systems, you must install\n' +\
+    'CVXOPT (http://cvxopt.org/).'
+polytope_msg = 'polytope not found.\n' +\
+    'For routines treating hybrid systems, you must install\n' +\
+    'the Python package polytope (https://pypi.python.org/pypi/polytope).'
 
 # These are nice to have but not necessary. Each item is of the form
 #
@@ -115,8 +152,10 @@ pydot_msg = 'pydot not found.\n' +\
 #           success, second printed on failure (i.e. package not
 #           found); we interpret the return value True to be success,
 #           and False failure.
-optionals = {'glpk' : [check_glpk, 'GLPK found.', glpk_msg],
-             'gr1c' : [check_gr1c, 'gr1c found.', gr1c_msg],
+optionals = {'cvxopt' : [check_cvxopt, 'cvxopt found.', cvxopt_msg],
+             'polytope' : [check_polytope, 'polytope found.', polytope_msg],
+             'glpk' : [check_glpk, 'GLPK found.', glpk_msg],
+             'java': [check_java, 'Java  found.', java_msg],
              'matplotlib' : [check_mpl, 'matplotlib found.', mpl_msg],
              'pydot' : [check_pydot, 'pydot found.', pydot_msg]}
 
@@ -190,6 +229,12 @@ try:
 except ValueError:
     pass
 
+package_data = {
+    'tulip': ['commit_hash.txt'],
+    'tulip.transys.export' : ['d3.v3.min.js'],
+    'tulip.spec' : ['parsetab.py']
+}
+
 if check_deps:
     if not perform_setup:
         print('Checking for required dependencies...')
@@ -215,11 +260,6 @@ if check_deps:
         except:
             print('ERROR: NetworkX not found.')
             raise
-        try:
-            import cvxopt
-        except:
-            print('ERROR: CVXOPT not found.')
-            raise
 
     # Other dependencies
     for (dep_key, dep_val) in other_depends.items():
@@ -238,18 +278,28 @@ if check_deps:
         else:
             print("\t"+opt_val[2] )
 
+    # Optional stuff for which the installation configuration will
+    # change depending on the availability of each.
+    if check_jtlv():
+        print('Found optional JTLV-based solver.')
+        package_data['tulip.interfaces'] = ['jtlv_grgame.jar']
+    else:
+        print('The jtlv synthesis tool was not found. '
+              'Try extern/get-jtlv.sh to get it.\n'
+              'It is an optional alternative to gr1c, '
+              'the default GR(1) solver of TuLiP.')
+
 
 if perform_setup:
     # Build PLY table, to be installed as tulip package data
     try:
         import tulip.spec.lexyacc
-
-        tabmodule = 'parsetab'
+        tabmodule = tulip.spec.lexyacc.TABMODULE.split('.')[-1]
         outputdir = 'tulip/spec'
-
         parser = tulip.spec.lexyacc.Parser()
-        parser.rebuild_parsetab(tabmodule, outputdir=outputdir,
-                                debuglog=logger)
+        parser.build(tabmodule, outputdir=outputdir,
+                     write_tables=True,
+                     debug=True, debuglog=logger)
 
         plytable_build_failed = False
     except Exception as e:
@@ -285,27 +335,26 @@ if perform_setup:
         author = 'Caltech Control and Dynamical Systems',
         author_email = 'tulip@tulip-control.org',
         url = 'http://tulip-control.org',
+        bugtrack_url='http://github.com/tulip-control/tulip-control/issues',
         license = 'BSD',
-        requires = ['numpy', 'scipy', 'polytope', 'ply', 'networkx'],
+        classifiers=classifiers,
         install_requires = [
-            'numpy >= 1.7',
-            'polytope >= 0.1.0',
             'ply >= 3.4',
             'networkx >= 1.6',
-            'cvxopt'
+            'numpy >= 1.7',
+            'scipy',
         ],
+        extras_require={
+            'hybrid': ['cvxopt >= 1.1.7',
+                       'polytope >= 0.1.1']},
+        tests_require=['nose'],
         packages = [
             'tulip', 'tulip.transys', 'tulip.transys.export',
             'tulip.abstract', 'tulip.spec',
             'tulip.interfaces'
         ],
         package_dir = {'tulip' : 'tulip'},
-        package_data={
-            'tulip': ['commit_hash.txt'],
-            'tulip.interfaces': ['jtlv_grgame.jar'],
-            'tulip.transys.export' : ['d3.v3.min.js'],
-            'tulip.spec' : ['parsetab.py']
-        },
+        package_data=package_data
     )
 
     if plytable_build_failed:

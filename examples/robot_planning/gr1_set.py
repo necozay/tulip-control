@@ -1,6 +1,3 @@
-# WARNING: This example is not yet working.  Please check again in the
-#          upcoming release.
-#
 #!/usr/bin/env python
 # gr1_set.py - example of direct GR(1) specification,
 #              using an integer-valued variable to model location.
@@ -106,10 +103,10 @@ specs = spec.GRSpec(env_vars, sys_vars, env_init, sys_init,
 # Controller synthesis
 #
 # At this point we can synthesize the controller using one of the available
-# methods.  Here we make use of JTLV.
+# methods.  Here we make use of gr1c.
 #
 
-ctrl = synth.synthesize('jtlv', specs)
+ctrl = synth.synthesize('gr1c', specs)
 
 
 # Generate a graphical representation of the controller for viewing
