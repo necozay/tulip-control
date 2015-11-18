@@ -58,7 +58,7 @@ from tulip.hybrid import LtiSysDyn, PwaSysDyn
 
 from .prop2partition import (PropPreservingPartition,
                              pwa_partition, part2convex)
-from .feasible import is_feasible, solve_feasible
+from .feasible import is_feasible, is_feasible_alternative, solve_feasible
 from .plot import plot_ts_on_partition
 
 # inline imports:
@@ -1082,6 +1082,97 @@ def discretize_overlap(closed_loop=False, conservative=False):
 #                    trans=transitions, prop_regions=part.prop_regions,
 #                    original_regions=orig_list, orig=orig)                           
 #     return new_part
+
+def discretize_simple(
+    part, ssys, N=5, use_all_horizon=False, 
+    trans_length=1, abs_tol=1e-7,
+    plotit=False, save_img=False, plot_every=1
+):    
+    """Use the given partition and establish transitions
+    based on reachability analysis.
+    
+    See Also
+    ========
+    L{discretize}, L{prop2partition.pwa_partition}, L{prop2partition.part2convex}
+    
+    @param part: L{PropPreservingPartition} object
+    @param ssys: L{LtiSysDyn} or L{PwaSysDyn} object
+    @param N: horizon length
+    @param use_all_horizon: in closed loop algorithm: if we should look
+        for reachability also in less than N steps. The case of
+        use_all_horizon=True is still under development and currently
+        unavailable.
+    @param trans_length: the number of polytopes allowed to cross in a
+        transition.  a value of 1 checks transitions
+        only between neighbors, a value of 2 checks
+        neighbors of neighbors and so on.
+    @param abs_tol: maximum volume for an "empty" polytope
+    
+    @param plotit: plot partitioning as it evolves
+    @type plotit: boolean,
+        default = False
+    
+    @param save_img: save snapshots of partitioning to PDF files,
+        requires plotit=True
+    @type save_img: boolean,
+        default = False
+    
+    @rtype: L{AbstractPwa}
+    """
+
+    if use_all_horizon:
+        raise ValueError('discretize_simple() with use_all_horizon=True is'
+                         'still under development\nand currently unavailable.')
+
+    ispwa = isinstance(ssys, PwaSysDyn)
+    islti = isinstance(ssys, LtiSysDyn)
+
+    # find tansitions
+    adj = np.zeros(part.adj.shape, dtype=bool)
+    for in1 in range(part.adj.shape[0]):
+        for in2 in range(part.adj.shape[1]):
+            if part.adj[in1,in2]==1:
+                if islti:
+                    adj[in1,in2] = is_feasible_alternative(part[in1], part[in2], 
+                                       ssys, N=N)
+                if ispwa:
+                    for i, subsys in enumerate(ssys.list_subsys):
+                        if pc.is_subset(part[in1], subsys.domain, abs_tol=abs_tol):
+                            adj[in1,in2] = is_feasible_alternative(part[in1], 
+                                               part[in2], 
+                                               subsys, N=N)
+                            break
+                        if i == len(ssys.list_subsys):
+                            msg = 'The partition used in discretize_simple()'
+                            msg += 'is not consistent with PWA partition'
+                            warning.warn(msg)
+
+    # generate transition system and add transitions
+    ofts = trs.FTS()
+    adj = sp.lil_matrix(adj)
+    n = adj.shape[0]
+    ofts_states = range(n)
+    ofts_states = trs.prepend_with(ofts_states, 's')
+    ofts.states.add_from(ofts_states)
+    ofts.transitions.add_adj(adj, ofts_states)
+
+    # Decorate TS with state labels
+    atomic_propositions = set(part.prop_regions)
+    ofts.atomic_propositions.add_from(atomic_propositions)
+    for state, region in zip(ofts_states, part.regions):
+        state_prop = region.props.copy()
+        ofts.states.add(state, ap=state_prop)
+
+    param = {'N':N, 'disc_alg':'simple'} 
+    # discretization algorithm type as a parameter
+
+    return AbstractPwa(ppp=cont_par,
+                        ts=ofts,
+                        ppp2ts=ofts_states,
+                        pwa=sys_dyn,
+                        pwa_ppp=cont_par,
+                        disc_params=param)
+
 
 def multiproc_discretize(q, mode, ppp, cont_dyn, disc_params):
     global logger

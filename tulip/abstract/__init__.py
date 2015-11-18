@@ -37,7 +37,8 @@ from __future__ import absolute_import
 # avoid shadowing modules
 from .discretization import (
     discretize, discretize_switched,
-    multiproc_discretize_switched
+    multiproc_discretize_switched,
+    discretize_simple
 )
 from .feasible import is_feasible, solve_feasible, is_feasible_alternative
 
