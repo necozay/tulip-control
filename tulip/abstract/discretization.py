@@ -1166,11 +1166,11 @@ def discretize_simple(
     param = {'N':N, 'disc_alg':'simple'} 
     # discretization algorithm type as a parameter
 
-    return AbstractPwa(ppp=cont_par,
+    return AbstractPwa(ppp=part,
                         ts=ofts,
                         ppp2ts=ofts_states,
-                        pwa=sys_dyn,
-                        pwa_ppp=cont_par,
+                        pwa=ssys,
+                        pwa_ppp=part,
                         disc_params=param)
 
 
