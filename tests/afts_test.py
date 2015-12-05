@@ -73,7 +73,20 @@ class AFTS_test:
 
 @raises(Exception)
 def test_wrongmode():
+	"""Add progress group with action that is not in AFTS"""
 	ts = transys.AFTS()
 	ts.sys_actions.add('mode0')
 	ts.states.add_from({'s1', 's2'})
 	ts.set_progress_map({'mode0' : ('s0', 's1'), 'mode1' : ('s1', 's2')})
+
+def test_singleton():
+	"""AFTS with one mode and one state"""
+	ts = transys.AFTS()
+	ts.owner = 'env'
+	ts.sys_actions.add('mode0')
+	ts.states.add('s0')
+	ts.transitions.add('s0', 's0', sys_actions='mode0')
+	specs = spec.GRSpec(set(), set(), set(), set(),
+                    set(), set(), set(), set())
+	ctrl = synth.synthesize('gr1c', specs, env=ts, ignore_env_init=True)
+	assert ctrl != None
