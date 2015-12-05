@@ -14,7 +14,7 @@ class AFTS_test:
 		env_sws.owner = 'env'
 
 		env_sws.sys_actions.add('mode0')
-		# env_sws.sys_actions.add('mode1')
+		env_sws.sys_actions.add('mode1')
 
 		env_sws.atomic_propositions.add_from(['loop','exit'])
 
@@ -24,7 +24,7 @@ class AFTS_test:
 		env_sws.states.add('s3', ap={'loop'})
 		env_sws.states.add('s4', ap={'exit'})
 
-		# env_sws.states.initial.add('s0')
+		env_sws.states.initial.add('s0')
 
 		env_sws.transitions.add('s0', 's1', sys_actions='mode0')
 		env_sws.transitions.add('s1', 's2', sys_actions='mode0')
@@ -33,11 +33,11 @@ class AFTS_test:
 		env_sws.transitions.add('s3', 's4', sys_actions='mode0')
 		env_sws.transitions.add('s4', 's3', sys_actions='mode0')
 
-		# env_sws.transitions.add('s0', 's0', sys_actions='mode1')
-		# env_sws.transitions.add('s1', 's1', sys_actions='mode1')
-		# env_sws.transitions.add('s2', 's2', sys_actions='mode1')
-		# env_sws.transitions.add('s3', 's3', sys_actions='mode1')
-		# env_sws.transitions.add('s4', 's4', sys_actions='mode1')
+		env_sws.transitions.add('s0', 's0', sys_actions='mode1')
+		env_sws.transitions.add('s1', 's1', sys_actions='mode1')
+		env_sws.transitions.add('s2', 's2', sys_actions='mode1')
+		env_sws.transitions.add('s3', 's3', sys_actions='mode1')
+		env_sws.transitions.add('s4', 's4', sys_actions='mode1')
 
 		self.env_sws = env_sws
 
