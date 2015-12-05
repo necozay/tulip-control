@@ -546,6 +546,12 @@ class AugmentedFiniteTransitionSystem(FiniteTransitionSystem):
         """Assign Progress map to the AOFTS object
         """
         assert(isinstance(prog_map,dict))
+
+        # check that modes in prog_map are 
+        # sys_actions
+        for mode, group in prog_map.iteritems():
+            if not mode in self.sys_actions:
+                raise Exception("mode %s not in system" % mode)
         
         self.progress_map=copy.deepcopy(prog_map)
 
