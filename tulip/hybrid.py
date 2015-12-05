@@ -726,6 +726,97 @@ class SwitchedSysDyn(object):
         return cls((1,1), {(0,0):pwa_sys}, domain)
 
 
+def find_equilibria(ssd, eps=0): 
+    """ Finds the polytope that contains the equilibrium points
+
+    @param ssd: The dynamics of the switched system
+    @type ssd: L{SwitchedSysDyn}
+
+    @param eps: The value by which the width of all polytopes
+    containing equilibrium points is increased.
+    @type eps: float
+
+    @return param cont_props: The polytope representations of the atomic 
+    propositions of the state space to be used in partitiong 
+    @type cont_props: dict of polytope.Polytope
+
+    Warning: Currently, there is no condition for points where 
+    the polytope is critically stable. 
+
+    Warning: if there is a region outside the domain, then it is
+    unstable. It seems to ignore the regions outside the domain.
+    """
+    
+    def normalize(A,B):
+        """ Normalizes set of equations of the form Ax<=B
+        """
+        if A.size > 0:
+            Anorm = np.sqrt(np.sum(A*A,1)).flatten()     
+            pos = np.nonzero(Anorm > 1e-10)[0]
+            A = A[pos, :]
+            B = B[pos]
+            Anorm = Anorm[pos]           
+            mult = 1/Anorm
+            for i in xrange(A.shape[0]):
+                A[i,:] = A[i,:]*mult[i]
+            B = B.flatten()*mult
+        return A,B
+
+    cont_ss=ssd.cts_ss
+    min_outx=cont_ss.b[0]
+    min_outy=cont_ss.b[1]
+    max_outx=min_outx+1
+    max_outy=min_outy+1
+    abs_tol=1e-7
+
+    cont_props = dict()
+
+    for mode in ssd.modes:
+        cont_dyn=ssd.dynamics[mode].list_subsys[0]
+        A=cont_dyn.A
+        K=cont_dyn.K.T[0]
+        I=np.eye(len(A),dtype=float)
+        rank_IA=np.linalg.matrix_rank(I-A)
+        concat=np.hstack((I-A,K.reshape(len(A),1)))
+        rank_concat=np.linalg.matrix_rank(concat)
+        soln=pc.Polytope()
+        props_sym='eqpnt_'+str(mode[1])
+
+        if (rank_IA==rank_concat):
+            if (rank_IA==len(A)):
+                equil=np.dot(np.linalg.inv(I-A),K)
+                if (equil[0]>=(-cont_ss.b[2]) and equil[0]<=cont_ss.b[0] 
+                        and equil[1]>=(-cont_ss.b[3]) 
+                        and equil[1]<=cont_ss.b[1]):
+                    delta=eps+equil/100
+                    soln=pc.box2poly([[equil[0]-delta[0], equil[0]+delta[0]],
+                        [equil[1]-delta[1], equil[1]+delta[1]]]) 
+                else:
+                    soln=pc.box2poly([[min_outx,max_outx],[min_outy,max_outy]])
+
+            elif (rank_IA<len(A)):
+                if eps==0:
+                    eps=abs(min(np.amin(-K),np.amin(A-I)))
+                IAn,Kn = normalize(I-A,K)
+                soln=pc.Polytope(np.vstack((IAn,-IAn)), 
+                        np.hstack((Kn+eps,-Kn+eps)))
+                relevantsoln=pc.intersect(soln,cont_ss,abs_tol)
+                if(pc.is_empty(relevantsoln) & ~pc.is_empty(soln)):
+                    soln=pc.box2poly([[min_outx,max_outx],[min_outy,max_outy]])
+                else:
+                    soln=relevantsoln
+        
+        else:
+            #Assuming trajectories go to infinity as there are no 
+            #equilibrium points
+            soln=pc.box2poly([[min_outx,max_outx],[min_outy,max_outy]])
+            print str(mode)+" trajectories go to infinity! No solution"
+
+        cont_props[props_sym]=soln
+
+    return cont_props
+
+
 def generateFilter(Ain, Cin, bound, use_mosek = True, opt_dist=False, opt_dist_weight=1.):
 	"""Generates a linear filter L that minimizes a certain infinity norm.
 	Inputs:

@@ -50,7 +50,6 @@ from .prop2partition import (
     prop2part, part2convex,
     pwa_partition, add_grid,
     pwa_shrunk_partition,
-    find_equilibria,
     PropPreservingPartition, PPP
 )
 

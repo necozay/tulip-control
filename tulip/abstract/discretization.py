@@ -55,13 +55,14 @@ import polytope as pc
 
 from polytope.plot import plot_partition, plot_transition_arrow
 from tulip import transys as trs
-from tulip.hybrid import LtiSysDyn, PwaSysDyn
+from tulip.hybrid import LtiSysDyn, PwaSysDyn, find_equilibria
 from tulip.abstract import prop2partition as p2p
 
 from .prop2partition import (PropPreservingPartition,
                              pwa_partition, part2convex, 
-                             find_equilibria, prop2part
+                             prop2part
                              )
+
 from .feasible import is_feasible, solve_feasible
 from .plot import plot_ts_on_partition
 
@@ -1899,7 +1900,7 @@ def discretize_modeonlyswitched(ssd, cont_props, owner, grid_size=-1.,
     @type ssd: L{SwitchedSysDyn}
 
     @param cont_props: Continuous propositions
-    @type cont_props: List of C{Polytope}
+    @type cont_props: Dict of C{Polytope}
 
     @param owner: Who decides the next state
     @type owner: 'env' or 'sys'
@@ -1917,7 +1918,7 @@ def discretize_modeonlyswitched(ssd, cont_props, owner, grid_size=-1.,
     """
     cont_dyn={}
     trans={}
-    p2p.find_equilibria(ssd=ssd,cont_props=cont_props,eps=eps)
+    cont_props.update(find_equilibria(ssd=ssd, eps=eps))
     cont_part = p2p.prop2part(ssd.cts_ss, cont_props)
     plot_partition(cont_part, show=visualize)
     if is_convex:

@@ -47,3 +47,5 @@ of Model Checking" by Baier and Katoen (2008).
 # __all__ = ["abstract", "hybrid", "transys"]
 
 from .version import version as __version__
+
+from .hybrid import find_equilibria
