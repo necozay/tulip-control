@@ -74,7 +74,6 @@ def check_realizable(spec):
 
 def synthesize(spec, symbolic=False):
     """Return strategy satisfying the specification C{spec}.
-
     @type spec: L{GRSpec} or C{str} in structured slugs syntax.
     @return: If realizable return synthesized strategy, otherwise C{None}.
     @rtype: C{networkx.DiGraph}

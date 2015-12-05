@@ -1,4 +1,5 @@
 # Copyright (c) 2012-2015 by California Institute of Technology
+# and 2014 The Regents of the University of Michigan
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1131,7 +1132,6 @@ def synthesize(
         ctrl.remove_deadends()
     return ctrl
 
-
 def is_realizable(
     option, specs, env=None, sys=None,
     ignore_env_init=False, ignore_sys_init=False,
@@ -1199,7 +1199,36 @@ def _spec_plus_sys(
             bool_states=bool_states,
             bool_actions=bool_actions,
             statevar=statevar)
-        specs = specs | env_formula
+        if isinstance(env,transys.AugmentedFiniteTransitionSystem):
+            prog_spec=set();
+            for sys_act in env.sys_actions:
+                eq_spec='sys_actions !="'
+                eq_spec+=sys_act
+                eq_spec+='" ||  !('
+                if not env.env_actions:
+                    for state in env.progress_map[sys_act]:
+                        if state != env.progress_map[sys_act][0]:
+                            eq_spec+=' || '
+                        eq_spec+='eloc="'
+                        eq_spec+=str(state)
+                        eq_spec+='"'
+                    eq_spec+=')'
+                    prog_spec|={eq_spec}
+
+                elif env.env_actions:
+                    for x in env.env_actions:
+                        mode=(x, sys_act)
+                        for y in env.progress_map[mode]:
+                            for state in y:
+                                if state != y[0]:
+                                    eq_spec+=' || '
+                                eq_spec+='eloc="'
+                                eq_spec+=str(state)
+                                eq_spec+='"'
+                    eq_spec+=')'
+                    prog_spec|={eq_spec}
+            env_prog=GRSpec(env_prog=prog_spec)
+        specs = specs | env_formula | env_prog
         logger.debug('env TS:\n' + str(env_formula.pretty()) + _hl)
     logger.info('Overall Spec:\n' + str(specs.pretty()) + _hl)
     return specs
@@ -1404,7 +1433,7 @@ def determinize_machine_init(mach, init_out_values=None):
         init_out_values = dict()
     '''determinize given outputs (uncontrolled)'''
     # restrict attention to given output ports only
-    given_ports = tuple(k for k in mach.outputs if k in init_out_values)
+    given_ports = tuple(k for k in mach.outputs if k in init_out_values) #MS added ".values()"
     rm_edges = set()
     for i, j, key, d in mach.edges_iter(['Sinit'], data=True, keys=True):
         for k in given_ports:

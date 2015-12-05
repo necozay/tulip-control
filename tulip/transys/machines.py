@@ -34,6 +34,7 @@ from __future__ import absolute_import
 import copy
 from pprint import pformat
 from random import choice
+import itertools
 from tulip.transys.labeled_graphs import LabeledDiGraph
 # inline imports:
 #
