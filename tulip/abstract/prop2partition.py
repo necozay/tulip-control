@@ -1,4 +1,5 @@
-# Copyright (c) 2011-2014 by California Institute of Technology
+# Copyright (c) 2011 - 2014 by California Institute of Technology
+# and 2014 - 2015 The Regents of the University of Michigan
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -12,23 +13,23 @@
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
 # 
-# 3. Neither the name of the California Institute of Technology nor
-#    the names of its contributors may be used to endorse or promote
+# 3. Neither the name of the copyright holder(s) nor the names of its 
+#    contributors may be used to endorse or promote products derived 
 #    products derived from this software without specific prior
 #    written permission.
 # 
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL CALTECH
-# OR THE CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
-# USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
-# OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH DAMAGE.
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER(S) OR THE CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, 
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+# POSSIBILITY OF SUCH DAMAGE.
 # 
 """ 
 Proposition preserving partition module.
@@ -46,7 +47,9 @@ from scipy import sparse as sp
 import polytope as pc
 from polytope.plot import plot_partition
 
+
 from tulip import transys as trs
+
 
 # inline imports:
 #
@@ -271,6 +274,120 @@ def pwa_partition(pwa_sys, ppp, abs_tol=1e-5):
         prop_regions = ppp.prop_regions
     )
     return (new_ppp, subsys_list, parents)
+
+def pwa_shrunk_partition(pwa_sys, ppp, eps, abs_tol=1e-5):
+    """This function takes:
+    
+      - a piecewise affine system C{pwa_sys} and
+      - a proposition-preserving partition C{ppp}
+          whose domain is a subset of the domain of C{pwa_sys}
+      - a shrinkage factor C{eps}
+    
+    and returns a *refined* proposition preserving partition
+    where in each region a unique subsystem of pwa_sys is active
+    and pwa_sys domains are shrunk to account for estimation 
+    errors.
+
+    See Also
+    ========
+    L{pwa_partition}
+    
+    @type pwa_sys: L{hybrid.PwaSysDyn}
+    @type ppp: L{PropPreservingPartition}
+    
+    @return: new partition and associated maps:
+        
+        - new partition C{new_ppp}
+        - map of C{new_ppp.regions} to C{pwa_sys.list_subsys}
+        - map of C{new_ppp.regions} to C{ppp.regions}
+    
+    @rtype: C{(L{PropPreservingPartition}, list, list)}
+    """
+
+    new_list = []
+    subsys_list = []
+    parents = []
+    for i, subsys in enumerate(pwa_sys.list_subsys):
+        dom = shrinkPoly(subsys.domain, eps)
+        for j, region in enumerate(ppp.regions):
+            isect = pc.reduce(region.intersect(dom))
+            
+            if pc.is_fulldim(isect):
+                rc, xc = pc.cheby_ball(isect)
+                
+                if rc < abs_tol:
+                    msg = 'One of the regions in the refined PPP is '
+                    msg += 'too small, this may cause numerical problems'
+                    warnings.warn(msg)
+                
+                # not Region yet, but Polytope ?
+                if len(isect) == 0:
+                    isect = pc.Region([isect])
+                
+                # label with AP
+                isect.props = region.props.copy()
+                
+                # store new Region
+                new_list.append(isect)
+                
+                # keep track of original Region in ppp.regions
+                parents.append(j)
+                
+                # index of subsystem active within isect
+                subsys_list.append(i)
+    
+    # compute spatial adjacency matrix
+    n = len(new_list)
+    adj = sp.lil_matrix((n, n), dtype=np.int8)
+    for i, ri in enumerate(new_list):
+        pi = parents[i]
+        for j, rj in enumerate(new_list[0:i]):
+            pj = parents[j]
+            
+            if (ppp.adj[pi, pj] == 1) or (pi == pj):
+                # account for shrinkage in adjacency check
+                if pc.is_adjacent(ri, rj, 2*eps):  
+                    adj[i, j] = 1
+                    adj[j, i] = 1
+        adj[i, i] = 1
+            
+    new_ppp = PropPreservingPartition(
+        domain = ppp.domain,
+        regions = new_list,
+        adj = adj,
+        prop_regions = ppp.prop_regions
+    )
+    return (new_ppp, subsys_list, parents)
+
+def shrinkPoly(origPoly, epsilon):
+	"""Returns a polytope shrunk a distance 'epsilon'
+	to the edges from the Polytope origPoly.
+	"""
+	A = origPoly.A.copy()
+	b = origPoly.b.copy()
+	for i in range(A.shape[0]):
+		b[i] = b[i] - epsilon*np.linalg.norm(A[i][:])
+	return pc.reduce(pc.Polytope(A,b))
+
+def shrinkRegion(origRegion, epsilon):
+	"""Returns a region where all polytopes in the Region
+	origRegion have been shrunk a distance 'epsilon'"""
+	list_poly = copy.deepcopy(origRegion.list_poly)
+	props = copy.deepcopy(origRegion.props)
+	lengthie = len(list_poly)
+	for i in range(lengthie):
+		list_poly[i] = shrinkPoly(list_poly[i], epsilon)
+	return pc.Region(list_poly=list_poly, props=props)
+
+def shrinkPartition(origPartition, epsilon):
+	"""Returns a PropositionPreservingPartition where every
+	Region has been shrunk a distance 'epsilon'
+	"""
+	newPartition = copy.deepcopy(origPartition)
+	lengthie = len(newPartition.regions)
+	for i in range(lengthie):
+		newPartition.regions[i] = shrinkRegion(newPartition.regions[i], epsilon)
+	return newPartition
                 
 def add_grid(ppp, grid_size=None, num_grid_pnts=None, abs_tol=1e-10):
     """ This function takes a proposition preserving partition ppp and the size 
@@ -427,6 +544,92 @@ def product_interval(list1, list2):
     return new_list
 
 ################################
+
+def find_equilibria(ssd,cont_props,eps=0): 
+    """ Finds the polytope that contains the equilibrium points
+
+    @param ssd: The dynamics of the switched system
+    @type ssd: L{SwitchedSysDyn}
+
+    @param cont_props: The polytope representations of the atomic 
+    propositions of the state space to be used in partitiong 
+    @type cont_props: dict of polytope.Polytope
+
+    @param eps: The value by which the width of all polytopes
+    containing equilibrium points is increased.
+    @type eps: float
+
+    Warning: Currently, there is no condition for points where 
+    the polytope is critically stable. 
+
+    Warning: if there is a region outside the domain, then it is
+    unstable. It seems to ignore the regions outside the domain.
+    """
+    
+    def normalize(A,B):
+        """ Normalizes set of equations of the form Ax<=B
+        """
+        if A.size > 0:
+            Anorm = np.sqrt(np.sum(A*A,1)).flatten()     
+            pos = np.nonzero(Anorm > 1e-10)[0]
+            A = A[pos, :]
+            B = B[pos]
+            Anorm = Anorm[pos]           
+            mult = 1/Anorm
+            for i in xrange(A.shape[0]):
+                A[i,:] = A[i,:]*mult[i]
+            B = B.flatten()*mult
+        return A,B
+
+    cont_ss=ssd.cts_ss
+    min_outx=cont_ss.b[0]
+    min_outy=cont_ss.b[1]
+    max_outx=min_outx+1
+    max_outy=min_outy+1
+    abs_tol=1e-7
+
+    for mode in ssd.modes:
+        cont_dyn=ssd.dynamics[mode].list_subsys[0]
+        A=cont_dyn.A
+        K=cont_dyn.K.T[0]
+        I=np.eye(len(A),dtype=float)
+        rank_IA=np.linalg.matrix_rank(I-A)
+        concat=np.hstack((I-A,K.reshape(len(A),1)))
+        rank_concat=np.linalg.matrix_rank(concat)
+        soln=pc.Polytope()
+        props_sym='eqpnt_'+str(mode[1])
+
+        if (rank_IA==rank_concat):
+            if (rank_IA==len(A)):
+                equil=np.dot(np.linalg.inv(I-A),K)
+                if (equil[0]>=(-cont_ss.b[2]) and equil[0]<=cont_ss.b[0] 
+                        and equil[1]>=(-cont_ss.b[3]) 
+                        and equil[1]<=cont_ss.b[1]):
+                    delta=eps+equil/100
+                    soln=pc.box2poly([[equil[0]-delta[0], equil[0]+delta[0]],
+                        [equil[1]-delta[1], equil[1]+delta[1]]]) 
+                else:
+                    soln=pc.box2poly([[min_outx,max_outx],[min_outy,max_outy]])
+
+            elif (rank_IA<len(A)):
+                if eps==0:
+                    eps=abs(min(np.amin(-K),np.amin(A-I)))
+                IAn,Kn = normalize(I-A,K)
+                soln=pc.Polytope(np.vstack((IAn,-IAn)), 
+                        np.hstack((Kn+eps,-Kn+eps)))
+                relevantsoln=pc.intersect(soln,cont_ss,abs_tol)
+                if(pc.is_empty(relevantsoln) & ~pc.is_empty(soln)):
+                    soln=pc.box2poly([[min_outx,max_outx],[min_outy,max_outy]])
+                else:
+                    soln=relevantsoln
+        
+        else:
+            #Assuming trajectories go to infinity as there are no 
+            #equilibrium points
+            soln=pc.box2poly([[min_outx,max_outx],[min_outy,max_outy]])
+            print str(mode)+" trajectories go to infinity! No solution"
+
+        cont_props[props_sym]=soln
 
 class PropPreservingPartition(pc.MetricPartition):
     """Partition class with following fields:

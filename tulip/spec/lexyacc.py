@@ -113,7 +113,6 @@ class Lexer(object):
     t_NOT = r'\!'
 
     t_XOR = r'\^'
-
     t_EQUALS = r'\='  # a declarative language has no assignment
     t_NEQUALS = r'\!\='
     t_LT = r'\<'
@@ -123,6 +122,7 @@ class Lexer(object):
 
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
+
     t_NUMBER = r'\d+'
 
     t_IMP = '->'
