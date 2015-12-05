@@ -1228,7 +1228,8 @@ def _spec_plus_sys(
                     eq_spec+=')'
                     prog_spec|={eq_spec}
             env_prog=GRSpec(env_prog=prog_spec)
-        specs = specs | env_formula | env_prog
+            specs = specs | env_prog
+        specs = specs | env_formula
         logger.debug('env TS:\n' + str(env_formula.pretty()) + _hl)
     logger.info('Overall Spec:\n' + str(specs.pretty()) + _hl)
     return specs
