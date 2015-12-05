@@ -90,3 +90,33 @@ def test_singleton():
                     set(), set(), set(), set())
 	ctrl = synth.synthesize('gr1c', specs, env=ts, ignore_env_init=True)
 	assert ctrl != None
+
+def test_singleton():
+	"""Test multiple progress groups"""
+	ts = transys.AFTS()
+	ts.owner = 'env'
+	ts.sys_actions.add('mode0')
+	ts.sys_actions.add('mode1')
+
+	ts.atomic_propositions.add_from(['goal'])
+
+	ts.states.add('s0')
+	ts.states.add('s1', ap = {'goal'})
+	ts.states.add('s2')
+
+	ts.transitions.add('s0', 's0', sys_actions='mode0')
+	ts.transitions.add('s0', 's1', sys_actions='mode0')
+	ts.transitions.add('s2', 's1', sys_actions='mode0')
+	ts.transitions.add('s2', 's2', sys_actions='mode0')
+
+	ts.transitions.add('s1', 's2', sys_actions='mode1')
+	ts.transitions.add('s1', 's0', sys_actions='mode1')
+
+	ts.set_progress_map({'mode0' : [('s0',), ('s1')], 'mode1' : [] })
+
+	specs = spec.GRSpec(set(), set(), set(), set(),
+                    set(), set(), set(), 'goal')
+
+	ctrl = synth.synthesize('gr1c', specs, env=ts, ignore_env_init=True)
+	assert ctrl != None
+
