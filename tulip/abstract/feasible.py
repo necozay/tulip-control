@@ -104,8 +104,8 @@ def is_feasible_alternative(
 def exists_input(x0, ssys, P1, P3, N):
     """Checks if there exists a sequence u_seq such that:
     - x(t+1) = A x(t) + B u(t) + K
-    - x(k) \in P1 for k = 0,...N
-    - x(N) \in P3
+    - x(k) \in P1 for k = 0,...,N - 1
+    - x(N - 1) \in P3
     - [u(k); x(k)] \in PU
 
     See Also
@@ -145,7 +145,7 @@ def solve_feasible(
 ):
     """Compute S0 \subseteq P1 from which P2 is N-reachable.
     
-    N-reachable = reachable in horizon n.
+    N-reachable = reachable within horizon N.
     The system dynamics are C{ssys}.
     The closed-loop algorithm solves for one step at a time,
     which keeps the dimension of the polytopes down.
