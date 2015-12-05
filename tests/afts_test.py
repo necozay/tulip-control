@@ -79,6 +79,18 @@ def test_wrongmode():
 	ts.states.add_from({'s1', 's2'})
 	ts.set_progress_map({'mode0' : ('s0', 's1'), 'mode1' : ('s1', 's2')})
 
+def test_nopg():
+	"""PG for one mode but not the other"""
+	ts = transys.AFTS()
+	ts.sys_actions.add('mode0')
+	ts.sys_actions.add('mode0')
+	ts.states.add_from({'s1', 's2'})
+	ts.set_progress_map({'mode0' : ('s0', 's1')})
+	specs = spec.GRSpec(set(), set(), set(), set(),
+                    set(), set(), set(), set())
+	ctrl = synth.synthesize('gr1c', specs, env=ts, ignore_env_init=True)
+	assert ctrl != None
+
 def test_singleton():
 	"""AFTS with one mode and one state"""
 	ts = transys.AFTS()
@@ -91,8 +103,8 @@ def test_singleton():
 	ctrl = synth.synthesize('gr1c', specs, env=ts, ignore_env_init=True)
 	assert ctrl != None
 
-def test_singleton():
-	"""Test multiple progress groups"""
+def test_multi_pg():
+	"""Multiple progress groups for same mode"""
 	ts = transys.AFTS()
 	ts.owner = 'env'
 	ts.sys_actions.add('mode0')
