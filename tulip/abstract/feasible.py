@@ -352,7 +352,7 @@ def createLM(ssys, N, list_P, Pk=None, PN=None, disturbance_ind=None):
       - x(k) \in list_P[k] for k= 0, 1 ... N
     
     The returned polytope describes the intersection of the polytopes
-    for all possible
+    for all possible inputs.
 
     @param ssys: system dynamics
     @type ssys: L{LtiSysDyn}
