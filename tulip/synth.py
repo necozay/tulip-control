@@ -1180,13 +1180,17 @@ def _spec_plus_sys(
             logger.info('sys.state_varname undefined. '
                         'Will use the default variable name: "loc".')
             statevar = 'loc'
+
+        # add system formula
         sys_formula = sys_to_spec(
             sys, ignore_sys_init,
             bool_states=bool_states,
             bool_actions=bool_actions,
             statevar=statevar)
+
         specs = specs | sys_formula
         logger.debug('sys TS:\n' + str(sys_formula.pretty()) + _hl)
+
     if env is not None:
         if hasattr(env, 'state_varname'):
             statevar = sys.state_varname
@@ -1194,42 +1198,64 @@ def _spec_plus_sys(
             logger.info('env.state_varname undefined. '
                         'Will use the default variable name: "eloc".')
             statevar = 'eloc'
+
+        # add environment formula (transitions)
         env_formula = env_to_spec(
             env, ignore_env_init,
             bool_states=bool_states,
             bool_actions=bool_actions,
             statevar=statevar)
-        if isinstance(env,transys.AugmentedFiniteTransitionSystem):
-            prog_spec=set();
-            for sys_act in env.sys_actions:
-                eq_spec='sys_actions !="'
-                eq_spec+=sys_act
-                eq_spec+='" ||  !('
-                if not env.env_actions:
-                    for state in env.progress_map[sys_act]:
-                        if state != env.progress_map[sys_act][0]:
-                            eq_spec+=' || '
-                        eq_spec+='eloc="'
-                        eq_spec+=str(state)
-                        eq_spec+='"'
-                    eq_spec+=')'
-                    prog_spec|={eq_spec}
-
-                elif env.env_actions:
-                    for x in env.env_actions:
-                        mode=(x, sys_act)
-                        for y in env.progress_map[mode]:
-                            for state in y:
-                                if state != y[0]:
-                                    eq_spec+=' || '
-                                eq_spec+='eloc="'
-                                eq_spec+=str(state)
-                                eq_spec+='"'
-                    eq_spec+=')'
-                    prog_spec|={eq_spec}
-            env_prog=GRSpec(env_prog=prog_spec)
-            specs = specs | env_prog
         specs = specs | env_formula
+
+        # add progress group information to env_formula
+        if isinstance(env, transys.AugmentedFiniteTransitionSystem):
+            #     prog_spec = set();
+            #     for sys_act in env.sys_actions:
+            #         eq_spec = 'sys_actions !="'
+            #         eq_spec += sys_act
+            #         eq_spec += '" ||  !('
+            #         if not env.env_actions:
+                      # if there are no environment-controlled actions
+            #             for state in env.progress_map[sys_act]:
+            #                 if state != env.progress_map[sys_act][0]:
+            #                     eq_spec += ' || '
+            #                 eq_spec += 'eloc="'
+            #                 eq_spec += str(state)
+            #                 eq_spec += '"'
+            #             eq_spec += ')'
+            #             prog_spec |= {eq_spec}
+
+            #         else:
+                      # if there are environment-controlled actions
+            #             for x in env.env_actions:
+            #                 mode = (x, sys_act)
+            #                 for y in env.progress_map[mode]:
+            #                     for state in y:
+            #                         if state != y[0]:
+            #                             eq_spec += ' || '
+            #                         eq_spec += 'eloc="'
+            #                         eq_spec += str(state)
+            #                         eq_spec += '"'
+            #             eq_spec += ')'
+            #             prog_spec |= {eq_spec}
+            #     print prog_spec
+
+            # unpack progress group into mode - pg pairs
+            if not env.env_actions:
+                mode_pg = sum(
+                          [ [ ('(sys_actions != "%s")' % action, ['(eloc != "%s")' % s for s in pg]) \
+                            for pg in pgs] \
+                            for action, pgs in env.progress_map.iteritems()], \
+                          [])
+            else:
+                raise Exception("Synthesize not implemented for case with environment actions")
+
+            # join them together
+            prog_spec = set(['( ' + a + ' || ( ' + ' & '.join(b) + ' ) )' for a,b, in mode_pg])
+            env_prog = GRSpec(env_prog=prog_spec)
+            
+            specs = specs | env_prog
+
         logger.debug('env TS:\n' + str(env_formula.pretty()) + _hl)
     logger.info('Overall Spec:\n' + str(specs.pretty()) + _hl)
     return specs

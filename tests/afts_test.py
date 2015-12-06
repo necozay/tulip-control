@@ -82,12 +82,21 @@ def test_wrongmode():
 def test_nopg():
 	"""PG for one mode but not the other"""
 	ts = transys.AFTS()
+	ts.owner = 'env'
 	ts.sys_actions.add('mode0')
-	ts.sys_actions.add('mode0')
-	ts.states.add_from({'s1', 's2'})
+	ts.sys_actions.add('mode1')
+
+	ts.states.add_from({'s0', 's1', 's2'})
+
+	ts.transitions.add('s0', 's1', sys_actions='mode0')
+	ts.transitions.add('s1', 's0', sys_actions='mode0')
+	ts.transitions.add('s1', 's2', sys_actions='mode0')
+	ts.transitions.add('s2', 's2', sys_actions='mode0')
+
 	ts.set_progress_map({'mode0' : ('s0', 's1')})
+
 	specs = spec.GRSpec(set(), set(), set(), set(),
-                    set(), set(), set(), set())
+                    set(), set(), set(), {'eloc = "s1"', 'eloc = "s2"'})
 	ctrl = synth.synthesize('gr1c', specs, env=ts, ignore_env_init=True)
 	assert ctrl != None
 
@@ -124,11 +133,41 @@ def test_multi_pg():
 	ts.transitions.add('s1', 's2', sys_actions='mode1')
 	ts.transitions.add('s1', 's0', sys_actions='mode1')
 
-	ts.set_progress_map({'mode0' : [('s0',), ('s1')], 'mode1' : [] })
+	ts.set_progress_map({'mode0' : [set(['s0']), set(['s1'])] })
 
 	specs = spec.GRSpec(set(), set(), set(), set(),
                     set(), set(), set(), 'goal')
 
 	ctrl = synth.synthesize('gr1c', specs, env=ts, ignore_env_init=True)
 	assert ctrl != None
+
+def test_env_act():
+	"""Progress group with environment actions"""
+	ts = transys.AFTS()
+	ts.owner = 'env'
+	ts.sys_actions.add('sys_m0')
+	ts.sys_actions.add('sys_m1')
+	ts.env_actions.add('env_m0')
+	ts.env_actions.add('env_m1')
+
+	ts.states.add('s0')
+	ts.states.add('s1')
+
+	ts.transitions.add('s0', 's1', sys_actions='sys_m0', env_actions = 'env_m0')
+	ts.transitions.add('s0', 's1', sys_actions='sys_m0', env_actions = 'env_m1')
+	ts.transitions.add('s0', 's1', sys_actions='sys_m1', env_actions = 'env_m0')
+	ts.transitions.add('s0', 's1', sys_actions='sys_m1', env_actions = 'env_m1')
+	ts.transitions.add('s1', 's1', sys_actions='sys_m0', env_actions = 'env_m1')
+	ts.transitions.add('s1', 's1', sys_actions='sys_m1', env_actions = 'env_m0')
+	ts.transitions.add('s1', 's1', sys_actions='sys_m1', env_actions = 'env_m1')
+	ts.transitions.add('s1', 's0', sys_actions='sys_m0', env_actions = 'env_m0')
+
+	ts.set_progress_map({('env_m0', 'sys_m0') : ( 's1', ) })
+
+	specs = spec.GRSpec(set(), set(), set(), set(),
+                    set(), set(), set(), 'eloc = "s0"')
+
+	ctrl = synth.synthesize('gr1c', specs, env=ts, ignore_env_init=True)
+	assert ctrl != None
+
 

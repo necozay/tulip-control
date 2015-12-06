@@ -547,13 +547,31 @@ class AugmentedFiniteTransitionSystem(FiniteTransitionSystem):
         """
         assert(isinstance(prog_map,dict))
 
-        # check that modes in prog_map are 
-        # sys_actions
-        for mode, group in prog_map.iteritems():
-            if not mode in self.sys_actions:
-                raise Exception("mode %s not in system" % mode)
+        # if initialized with a single set, put it 
+        # into a list of size 1
+        for key in prog_map.iterkeys():
+            if isinstance(prog_map[key], set) or \
+               isinstance(prog_map[key], tuple):
+                prog_map[key] = [set(prog_map[key])]
+
+        # check that modes in prog_map are in states.sys_actions
+        # and that progress groups are in self.states
+        for mode, pgs in prog_map.iteritems():
+            if not self.env_actions:
+                if not mode in self.sys_actions:
+                    raise Exception("mode %s not in system" % mode)
+            else:
+                if (not mode[0] in self.env_actions) or (not mode[1] in self.sys_actions):
+                    raise Exception("mode %s not in system" % mode)
+
+            for pg in pgs:
+                if not pg < set(self.states):
+                    print pg
+                    print self.states
+                    raise Exception("progress group %s not in system" % pg)
         
         self.progress_map=copy.deepcopy(prog_map)
+
 
 class AFTS(AugmentedFiniteTransitionSystem):
     """Alias to L{transys.AugmentedOpenFiniteTransitionSystem}
