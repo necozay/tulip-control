@@ -50,11 +50,11 @@ import multiprocessing as mp
 import math
 logger = logging.getLogger(__name__)
 
-from tulip import spec, hybrid,synth
+from tulip import spec, hybrid,synth, find_equilibria
 from polytope import box2poly
 from tulip.abstract import prop2part, discretize, add_grid 
 from tulip.abstract import part2convex, find_discrete_state
-from tulip.abstract import find_equilibria, get_input
+from tulip.abstract import get_input
 from tulip.abstract import discretization as ds
 from tulip import transys as trs
 import polytope as pc
@@ -121,8 +121,8 @@ ssd=hybrid.SwitchedSysDyn(disc_domain_size=(1,4),
 owner='env'
 
 
-abstMOS=ds.discretize_modeonlyswitched(ssd=ssd,cont_props=cont_props, owner=owner, grid_size=0.5,
-                                visualize=True,eps=0.1, is_convex=True,
+abstMOS=ds.discretize_modeonlyswitched(ssd=ssd,cont_props=cont_props, owner=owner, grid_size=1.0,
+                                visualize=False,eps=0.1, is_convex=True,
                                 N=1,abs_tol=1e-7)
 #print abstMOS
 
