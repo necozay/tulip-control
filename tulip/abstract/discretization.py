@@ -1725,7 +1725,7 @@ def merge_partition_pair(
     
     return new_list, parents, ap_labeling
 
-def create_prog_map(modes, ppp):# MS Added
+def create_prog_map(modes, ppp):
     """ Creates a progress group map for a proposition preserving partition
 
     A progress group map for a mode is a set of tuples that contains the 
@@ -1737,7 +1737,9 @@ def create_prog_map(modes, ppp):# MS Added
 
     @param prog_map: The states in which the system doesn't reach 
     equilibrium for a given state
-    @type prog_map: dict of set of tuples. 
+    @type prog_map: dict of set of tuples.
+    
+    Warning: Works only for Affine Systems without periodic orbits
     """
     prog_map=dict()
     for mode in modes:
@@ -1750,9 +1752,10 @@ def create_prog_map(modes, ppp):# MS Added
                     for j in range(len(r_current.list_poly)):
                         if not cur_region.intersect(r_current.list_poly[j]):
                             mode_prog|={'s'+str(i)}
+                        # TO DO:Ideally should not use polytope operations
                 if mode_prog:
-                    prog_map[mode]=set()
-                    prog_map[mode].add(tuple(mode_prog))
+                    prog_map[mode]=[]
+                    prog_map[mode].append(mode_prog)
 
     return prog_map
 
@@ -1856,6 +1859,8 @@ def create_afts(owner, ssd, cont_props, ref_grid, prog_map, trans):
                 (e,s):{'env_actions':str(e), 'sys_actions':str(s)}
                 for e,s in ssd.modes
                 }
+    afts.env_actions.add_from([str(e) for e,s in ssd.modes])
+    afts.sys_actions.add_from([str(s) for e,s in ssd.modes])
     for mode in ssd.modes:
         r,c=trans[mode].shape
         trans[mode]=np.vstack((trans[mode],np.zeros((1,c))))
@@ -1868,7 +1873,6 @@ def create_afts(owner, ssd, cont_props, ref_grid, prog_map, trans):
             afts.states.add_from(set(afts_states))
             afts.atomic_propositions.add_from(set(cont_props))
             afts.states.initial.add('s0')
-            afts.set_progress_map(prog_map)
             for (i, state) in enumerate(afts_states):
                 props=set()
                 if i==c-1:
@@ -1879,10 +1883,8 @@ def create_afts(owner, ssd, cont_props, ref_grid, prog_map, trans):
                             props|={p}
                 afts.states[state]['ap'] = props
             cnt=1
-
-        afts.env_actions.add_from([str(e) for e,s in ssd.modes])
-        afts.sys_actions.add_from([str(s) for e,s in ssd.modes])
         afts.transitions.add_adj(adj=adj,adj2states=afts_states,**actions_per_mode[mode])
+    afts.set_progress_map(prog_map)
     return afts
 
 
@@ -1906,7 +1908,7 @@ def discretize_modeonlyswitched(ssd, cont_props, owner, grid_size=-1.,
     @type owner: 'env' or 'sys'
 
     @param grid_size: Grid to be added on to PPP
-    @type: Natural Number
+    @type: Positive Number
 
     @param visualize: Choice of whether user wants to see plots
     @type visualize: boolean
