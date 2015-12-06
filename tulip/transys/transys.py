@@ -566,8 +566,6 @@ class AugmentedFiniteTransitionSystem(FiniteTransitionSystem):
 
             for pg in pgs:
                 if not pg < set(self.states):
-                    print pg
-                    print self.states
                     raise Exception("progress group %s not in system" % pg)
         
         self.progress_map=copy.deepcopy(prog_map)

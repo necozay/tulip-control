@@ -157,10 +157,11 @@ def test_env_act():
 	ts.transitions.add('s0', 's1', sys_actions='sys_m0', env_actions = 'env_m1')
 	ts.transitions.add('s0', 's1', sys_actions='sys_m1', env_actions = 'env_m0')
 	ts.transitions.add('s0', 's1', sys_actions='sys_m1', env_actions = 'env_m1')
-	ts.transitions.add('s1', 's1', sys_actions='sys_m0', env_actions = 'env_m1')
+
+	ts.transitions.add('s1', 's1', sys_actions='sys_m0', env_actions = 'env_m0')
 	ts.transitions.add('s1', 's1', sys_actions='sys_m1', env_actions = 'env_m0')
 	ts.transitions.add('s1', 's1', sys_actions='sys_m1', env_actions = 'env_m1')
-	ts.transitions.add('s1', 's0', sys_actions='sys_m0', env_actions = 'env_m0')
+	ts.transitions.add('s1', 's0', sys_actions='sys_m0', env_actions = 'env_m1')
 
 	ts.set_progress_map({('env_m0', 'sys_m0') : ( 's1', ) })
 

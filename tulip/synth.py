@@ -1209,37 +1209,6 @@ def _spec_plus_sys(
 
         # add progress group information to env_formula
         if isinstance(env, transys.AugmentedFiniteTransitionSystem):
-            #     prog_spec = set();
-            #     for sys_act in env.sys_actions:
-            #         eq_spec = 'sys_actions !="'
-            #         eq_spec += sys_act
-            #         eq_spec += '" ||  !('
-            #         if not env.env_actions:
-                      # if there are no environment-controlled actions
-            #             for state in env.progress_map[sys_act]:
-            #                 if state != env.progress_map[sys_act][0]:
-            #                     eq_spec += ' || '
-            #                 eq_spec += 'eloc="'
-            #                 eq_spec += str(state)
-            #                 eq_spec += '"'
-            #             eq_spec += ')'
-            #             prog_spec |= {eq_spec}
-
-            #         else:
-                      # if there are environment-controlled actions
-            #             for x in env.env_actions:
-            #                 mode = (x, sys_act)
-            #                 for y in env.progress_map[mode]:
-            #                     for state in y:
-            #                         if state != y[0]:
-            #                             eq_spec += ' || '
-            #                         eq_spec += 'eloc="'
-            #                         eq_spec += str(state)
-            #                         eq_spec += '"'
-            #             eq_spec += ')'
-            #             prog_spec |= {eq_spec}
-            #     print prog_spec
-
             # unpack progress group into mode - pg pairs
             if not env.env_actions:
                 mode_pg = sum(
@@ -1248,7 +1217,11 @@ def _spec_plus_sys(
                             for action, pgs in env.progress_map.iteritems()], \
                           [])
             else:
-                raise Exception("Synthesize not implemented for case with environment actions")
+                mode_pg = sum(
+                          [ [ ('(env_actions != "%s" || sys_actions != "%s")' % (action[0], action[1]), ['(eloc != "%s")' % s for s in pg]) \
+                            for pg in pgs] \
+                            for action, pgs in env.progress_map.iteritems()], \
+                          [])
 
             # join them together
             prog_spec = set(['( ' + a + ' || ( ' + ' & '.join(b) + ' ) )' for a,b, in mode_pg])
