@@ -1209,22 +1209,25 @@ def _spec_plus_sys(
 
         # add progress group information to env_formula
         if isinstance(env, transys.AugmentedFiniteTransitionSystem):
+
             # unpack progress group into mode - pg pairs
-            if not env.env_actions:
-                mode_pg = sum(
+
+            # progress groups defined over sys_actions
+            mode_pg1 = sum(
                           [ [ ('(sys_actions != "%s")' % action, ['(eloc != "%s")' % s for s in pg]) \
                             for pg in pgs] \
-                            for action, pgs in env.progress_map.iteritems()], \
+                            for action, pgs in env.progress_map.iteritems() if isinstance(action, str)], \
                           [])
-            else:
-                mode_pg = sum(
+
+            # progress groups defined over a (env_action, sys_action) pair
+            mode_pg2 = sum(
                           [ [ ('(env_actions != "%s" || sys_actions != "%s")' % (action[0], action[1]), ['(eloc != "%s")' % s for s in pg]) \
                             for pg in pgs] \
-                            for action, pgs in env.progress_map.iteritems()], \
+                            for action, pgs in env.progress_map.iteritems() if isinstance(action, tuple)], \
                           [])
 
             # join them together
-            prog_spec = set(['( ' + a + ' || ( ' + ' & '.join(b) + ' ) )' for a,b, in mode_pg])
+            prog_spec = set(['( ' + a + ' || ( ' + ' & '.join(b) + ' ) )' for a,b, in mode_pg1 + mode_pg2])
             env_prog = GRSpec(env_prog=prog_spec)
             
             specs = specs | env_prog

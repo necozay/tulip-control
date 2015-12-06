@@ -543,7 +543,16 @@ class AugmentedFiniteTransitionSystem(FiniteTransitionSystem):
         return s
 
     def set_progress_map(self,prog_map=dict()):
-        """Assign Progress map to the AOFTS object
+        """Assign Progress map to the AFTS object
+           @param prog_map: Progress map
+           @type prog_map: dict of type key = action, value = progress_groups,
+                where action is 1) an item in self.sys_actions or 2) a tuple (env_action, sys_action)
+                for env_action in self.env_actions and sys_action in self.sys_actions
+                and progress_groups is either an iterable of states or a list of iterables of states 
+                (the latter allows for multiple progress groups for the same mode)
+
+           In the case with environment actions, if a progress group is added with only a sys_action key,
+           it is treated as a progress group regardless of environment action.
         """
         assert(isinstance(prog_map,dict))
 
@@ -557,12 +566,14 @@ class AugmentedFiniteTransitionSystem(FiniteTransitionSystem):
         # check that modes in prog_map are in states.sys_actions
         # and that progress groups are in self.states
         for mode, pgs in prog_map.iteritems():
-            if not self.env_actions:
+            if isinstance(mode,str):
                 if not mode in self.sys_actions:
                     raise Exception("mode %s not in system" % mode)
-            else:
+            elif isinstance(mode, tuple):
                 if (not mode[0] in self.env_actions) or (not mode[1] in self.sys_actions):
                     raise Exception("mode %s not in system" % mode)
+            else:
+                raise SyntaxError("invalid progress group")
 
             for pg in pgs:
                 if not pg < set(self.states):
