@@ -4,11 +4,15 @@ Developer's Guide
 The purpose of this page is to provide guidelines for contributors to the TuLiP
 project.  Also consult the `Developers' Wiki <https://github.com/tulip-control/tulip-control/wiki>`_ and the `tulip-control-discuss mailing list <https://sourceforge.net/p/tulip-control/mailman/tulip-control-discuss/>`_ (members only).
 
+.. _sec:code-style-guidelines:
+
 Organization and Rules
 ----------------------
 
 We begin with important organizational notes and **rules** that should
 be followed:
+
+- `PEP 20 <https://www.python.org/dev/peps/pep-0020/>`_.
 
 - `PEP 8 <http://python.org/dev/peps/pep-0008/>`_.  Especially, you should
 
@@ -38,28 +42,47 @@ be followed:
   characters in length, and if elaboration is necessary, then first skip a line
   (i.e., leave one blank) before beginning with details.
 
+- A copyright notice and pointer to the ``LICENSE`` file of ``tulip`` shall be placed
+  as comments at the top of each source file (unless no copyright applies).
+
 - When referring to publications, check for a corresponding entry in
-  ``doc/bibliography.rst`` and create one if needed, following the `BibTeX
-  alpha.bst style <http://sites.stat.psu.edu/~surajit/present/bib.htm#alpha>`_.
-  References in the Sphinx-built documentation are as usual, e.g.,
-  ``[WTOXM11]_``.  References in docstrings (in the code) should be to the URL
-  of the corresponding entry on the TuLiP website, using `Epydoc syntax
-  <http://epydoc.sourceforge.net/manual-epytext.html>`_, e.g., ::
+  ``doc/bib.txt`` and create one if needed. The syntax is described in
+  ``genbib.py``. References in the Sphinx-built documentation are achieved by
+  including a link, e.g., inline like ::
+
+    `[WTOXM11] <bibliography.html#wtoxm11>`_
+
+  which renders as `[WTOXM11] <bibliography.html#wtoxm11>`_.  References in docstrings (in the
+  code) should be to the URL of the corresponding entry on the TuLiP website,
+  using `Epydoc syntax <http://epydoc.sourceforge.net/manual-epytext.html>`_,
+  e.g., ::
 
     U{[WTOXM11] <http://tulip-control.sourceforge.net/doc/bibliography.html#wtoxm11>}
 
-- A script for running tests is ``run_test.py`` in the root of the source tree.
-  It searches under the directory ``tests/`` for files with names ending in
-  "_test.py", and passes these to `nose <http://readthedocs.org/docs/nose/>`_.
-  Use the flag "-h" to see driver script options.  Extra details about options:
+Testing
+-------
 
-  * The flag "--cover" to generate a coverage report, which will likely be
-    placed under ``tests/cover/``.  It uses `Ned Batchelder's coverage module
-    <http://www.nedbatchelder.com/code/modules/coverage.html>`_.
+A script for running tests is ``run_test.py`` in the root of the source
+tree. Without the ``-f`` or ``--testfiles`` switch, ``run_tests.py`` expects the
+user to request a family of tests to perform. The default is "base", which
+corresponds to tests that should pass when the required dependencies of TuLiP
+are satisfied. The other extreme is "full", which performs all tests. In
+between, other families are defined, e.g., "hybrid", which involves all "base"
+tests and any tests that should pass given a successful ``pip install tulip[hybrid]``,
+namely, when the optional packages ``cvxopt`` and ``polytope`` are present.
 
-  * The flag "--outofsource" will cause ``tulip`` to be imported from outside
-    the current directory.  This is useful for testing against the installed
-    form of TuLiP.
+Provided the ``-f`` or ``--testfiles`` switch, it searches under the directory
+``tests/`` for files with names ending in "_test.py", and passes these to `nose
+<http://readthedocs.org/docs/nose/>`_.  Use the flag "-h" to see driver script
+options.  Extra details about options:
+
+* The flag "--cover" to generate a coverage report, which will likely be placed
+  under ``tests/cover/``.  It uses `Ned Batchelder's coverage module
+  <http://www.nedbatchelder.com/code/modules/coverage.html>`_.
+
+* The flag "--outofsource" will cause ``tulip`` to be imported from outside the
+  current directory.  This is useful for testing against the installed form of
+  TuLiP.
 
 Version naming
 --------------
@@ -80,13 +103,33 @@ want.
 None of these version numbers go in individual files, but
 the version number is a label for the entire package.
 
+Making releases
+---------------
+
+#. Collect list of major changes.
+#. Update the changelog.
+#. Tag with message of the form "REL: version 1.2.0".
+#. Create source release, ``python setup.py sdist``.
+#. Post it to PyPI and SourceForge.net.
+#. Build and post User's Guide and API manual. Under the directory doc/, run ::
+
+     ./rsync-web.sh USERNAME
+     ./rsync-docs.sh USERNAME
+
+   where ``USERNAME`` is your SourceForge.net handle.
+#. Make announcement on `tulip-control-announce mailing list
+   <https://lists.sourceforge.net/lists/listinfo/tulip-control-announce>`_,
+   providing major website links and the summary of changes.
+#. Bump version in the repository, in preparation for next release.
+
 
 Advice
 ------
 
 The following are software engineering best practices that you should try to
 follow.  We mention them here for convenience of reference and to aid new
-committers.
+committers. Unlike :ref:`sec:code-style-guidelines`, this section can be
+entirely ignored.
 
 - Keep function length to a minimum.
 	As mentioned `at this talk <http://www.infoq.com/presentations/Scrub-Spin>`_, `MSL <http://en.wikipedia.org/wiki/Mars_Science_Laboratory>`_ included the rule that no function should be longer than 75 lines of code.
@@ -114,11 +157,22 @@ committers.
 
 - Modules shouldn't become `God objects <http://en.wikipedia.org/wiki/God_object>`_. Keep them short (at most a few thousand lines) and well-organized.
 
+- Commit changes before you go to sleep.
+    You can always `rebase <https://help.github.com/articles/using-git-rebase/>`_ later multiple times, until you are happy with the history.
+    This ensures that history won't have been forgotten by the time you return to that workspace.
+
+- Prefix commits to classify the changes.
+  The `NumPy development workflow <http://docs.scipy.org/doc/numpy/dev/gitwash/development_workflow.html>`_ contains a summary of common abbreviations.
+  You may prefer to use "MAI:" instead of "MAINT:", and "REF:" for refactoring.
+
+
 Further reading, of general interest:
 
 - "`On commit messages
   <http://who-t.blogspot.com/2009/12/on-commit-messages.html>`_" by Peter
   Hutterer (28 Dec 2009).
+
+- `Google Python Style Guide <https://google-styleguide.googlecode.com/svn/trunk/pyguide.html>`_
 
 - Chapters 1, 2, 4, 6, 8 of the `Linux kernel coding style guide <https://www.kernel.org/doc/Documentation/CodingStyle>`_
 

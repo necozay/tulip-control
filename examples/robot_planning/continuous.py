@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-#
-# WARNING: This example may not yet be working.  Please check again in
-#          the upcoming release.
-#
 """
 This example is an extension of robot_discrete.py by including continuous
 dynamics with disturbances.
@@ -44,7 +40,7 @@ cont_state_space = box2poly([[0., 3.], [0., 2.]])
 
 # Continuous dynamics
 A = np.array([[1.0, 0.], [ 0., 1.0]])
-B = np.array([[0.1, 0.], [ 0., 0.1]])
+B = np.array([[0.2, 0.], [ 0., 0.2]])
 E = np.array([[1,0], [0,1]])
 
 # Available control, possible disturbances
@@ -78,11 +74,11 @@ disc_dynamics = discretize(
 )
 # @discretize_section_end@
 
-"""Visualize transitions in continuous domain (optional)"""
+# Visualize transitions in continuous domain (optional)
 plot_partition(disc_dynamics.ppp, disc_dynamics.ts,
                disc_dynamics.ppp2ts) if show else None
 
-"""Specifications"""
+# Specifications
 # Environment variables and assumptions
 env_vars = {'park'}
 env_init = set()                # empty set
@@ -101,13 +97,13 @@ specs = spec.GRSpec(env_vars, sys_vars, env_init, sys_init,
                     env_safe, sys_safe, env_prog, sys_prog)
 
 # @synthesize_section@
-"""Synthesize"""
-ctrl = synth.synthesize('jtlv', specs,
+# Synthesize
+ctrl = synth.synthesize('gr1c', specs,
                         sys=disc_dynamics.ts, ignore_sys_init=True)
 
 # Generate a graphical representation of the controller for viewing
-if not ctrl.save('continuous.png'):
-    print(ctrl)
+#if not ctrl.save('continuous.png'):
+#    print(ctrl)
 # @synthesize_section_end@
 
 # Simulation

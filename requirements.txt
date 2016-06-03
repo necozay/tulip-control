@@ -1,0 +1,20 @@
+# usage: `pip install -r requirements.txt`
+pip>=7.1.2
+
+ply==3.4
+networkx==1.6
+numpy==1.7
+scipy
+
+# easy extras
+omega==0.0.8
+gr1py>=0.1.0
+
+# extras (uncomment as needed)
+# cvxopt==1.1.7
+# polytope==0.1.1  # required for algorithms on hybrid systems
+# matplotlib
+
+# tests
+nose
+

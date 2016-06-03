@@ -8,11 +8,11 @@ Installation
 
 In most cases, it suffices to::
 
-  python setup.py install
+  pip install .
 
-To avoid checking for optional dependencies, add the option "nocheck"::
+To check for required and optional dependencies without actually installing::
 
-  python setup.py install nocheck
+  python setup.py dry-check
 
 TuLiP can be installed also `from PyPI <https://pypi.python.org/pypi/tulip>`_::
 
@@ -53,11 +53,23 @@ may also read API documentation using the standard pydoc tool.  E.g., ::
 Testing
 -------
 
-Tests are performed using nose; see http://readthedocs.org/docs/nose/ for
-details.  From the root of the source tree (i.e., where setup.py is located),
-run::
+Tests are performed using `nose <http://readthedocs.org/docs/nose/>`_.  From the
+root of the source tree (i.e., where setup.py is located), ::
 
   ./run_tests.py
 
-to run all available tests.  Use the flag "-h" to see driver script options.  To
-disable output capture, add the flag "-s" when invoking nose.
+to perform basic tests.  To try all available tests, ``./run_tests.py full``.
+For alternatives and a summary of usage, ``./run_tests.py -h``
+
+
+License
+-------
+
+This is free software released under the terms of `the BSD 3-Clause License
+<http://opensource.org/licenses/BSD-3-Clause>`_.  There is no warranty; not even
+for merchantability or fitness for a particular purpose.  Consult LICENSE for
+copying conditions.
+
+When code is modified or re-distributed, the LICENSE file should accompany the code or any subset of it, however small.
+As an alternative, the LICENSE text can be copied within files, if so desired.
+

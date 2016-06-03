@@ -1,4 +1,5 @@
-# Copyright (c) 2013-2014 by California Institute of Technology
+# Copyright (c) 2013-2015 by California Institute of Technology
+# and 2014 The Regents of the University of Michigan
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,22 +33,18 @@
 """Transition System Module"""
 from __future__ import absolute_import
 import logging
-logger = logging.getLogger(__name__)
 from collections import Iterable
 from pprint import pformat
-try:
-    import natsort
-except ImportError:
-    logger.error('failed to import natsort')
-    natsort = None
 from tulip.transys.labeled_graphs import (
     LabeledDiGraph, str2singleton, prepend_with)
 from tulip.transys.mathset import PowerSet, MathSet
+import copy
 # inline imports
 #
 # from tulip.transys.export import graph2promela
 
 
+logger = logging.getLogger(__name__)
 _hl = 40 * '-'
 
 
@@ -99,7 +96,7 @@ class KripkeStructure(LabeledDiGraph):
             'Atomic Propositions (APs):\n\t' +
             pformat(self.atomic_propositions, indent=3) + 2 * '\n' +
             'States labeled with sets of APs:\n' +
-            _dumps_states(self, sort=True) + 2 * '\n' +
+            _dumps_states(self) + 2 * '\n' +
             'Initial States:\n' +
             pformat(self.states.initial, indent=3) + 2 * '\n' +
             'Transitions:\n' +
@@ -388,7 +385,6 @@ class FiniteTransitionSystem(LabeledDiGraph):
         self.default_export_fname = 'fts'
 
     def __str__(self):
-        sort = True
         isopen = (
             ('sys' and any({'env' in x for x in self.actions})) or
             ('env' and any({'sys' in x for x in self.actions})))
@@ -402,7 +398,7 @@ class FiniteTransitionSystem(LabeledDiGraph):
             'Atomic Propositions (APs):\n' +
             pformat(self.atomic_propositions, indent=3) + 2 * '\n' +
             'States labeled with sets of APs:\n' +
-            _dumps_states(self, sort=sort) + 2 * '\n' +
+            _dumps_states(self) + 2 * '\n' +
             'Initial States:\n' +
             pformat(self.states.initial, indent=3) + 2 * '\n')
 
@@ -423,16 +419,10 @@ class FiniteTransitionSystem(LabeledDiGraph):
                     ' (will cause you errors later)'
                     ', with possible values:\n\t' +
                     pformat(codomain, indent=3) + 2 * '\n')
-        if sort and natsort is not None:
-            edges = self.edges(data=True)
-            edges = natsort.natsorted(edges)
-        else:
-            edges = self.edges_iter(data=True)
-        edges_str = pformat(edges, indent=3)
 
         s += (
             'Transitions labeled with sys and env actions:\n' +
-            edges_str +
+            pformat(self.transitions(data=True), indent=3) +
             '\n' + _hl + '\n')
         return s
 
@@ -472,6 +462,131 @@ class FiniteTransitionSystem(LabeledDiGraph):
 class FTS(FiniteTransitionSystem):
     """Alias to L{FiniteTransitionSystem}."""
 
+
+class AugmentedFiniteTransitionSystem(FiniteTransitionSystem):
+    """Augmented  Finite Transition System modeling an augmented system.
+    
+    Analogous to L{FTS}, but for augmented systems comprised of
+    the system and its environment.
+    
+    Please refer to L{FiniteTransitionSystem} and for usage details.
+    
+    The only significant difference is the addition of the progress map
+    group. This shows the states for each mode when the system is not 
+    going to be in equilibrium. 
+   
+    Warning: If states are removed from the system, after generation
+    and assignment of progress group map, update the progress group 
+    map and reassign it.
+
+    See Also
+    ========
+    L{FiniteTransitionSystem}
+    """
+    def __init__(self, env_actions=None, sys_actions=None, **args):
+        """Initialize Augmented  Finite Transition System.
+
+        @param env_actions: environment (uncontrolled) actions,
+            defined as C{edge_label_types} in L{LabeledDiGraph.__init__}
+
+        @param sys_actions: system (controlled) actions, defined as
+            C{edge_label_types} in L{LabeledDiGraph.__init__}
+        """
+        FiniteTransitionSystem.__init__(self,env_actions=env_actions, 
+            sys_actions=sys_actions);
+        
+        prog_map = dict()
+        self.progress_map=prog_map
+        self.default_export_fname = 'afts'
+    
+    def __str__(self):
+        isopen = (
+            ('sys' and any({'env' in x for x in self.actions})) or
+            ('env' and any({'sys' in x for x in self.actions})))
+        if isopen:
+            t = 'open'
+        else:
+            t = 'closed'
+        s = (
+            _hl + '\nFinite Transition System (' + t + '): ' +
+            self.name + '\n' + _hl + '\n' +
+            'Atomic Propositions (APs):\n' +
+            pformat(self.atomic_propositions, indent=3) + 2 * '\n' +
+            'States labeled with sets of APs:\n' +
+            _dumps_states(self) + 2 * '\n' +
+            'Initial States:\n' +
+            pformat(self.states.initial, indent=3) + 2 * '\n' +
+            'Progress Map:\n' +
+            pformat(self.progress_map,indent=3) +2*'\n')
+
+        for action_type, codomain in self.actions.iteritems():
+            if 'sys' in action_type:
+                s += (
+                    'System Action Type: ' + str(action_type) +
+                    ', with possible values: ' + str(codomain) + '\n' +
+                    pformat(codomain, indent=3) + 2 * '\n')
+            elif 'env' in action_type:
+                s += (
+                    'Environment Action Type: ' + str(action_type) +
+                    ', with possible values:\n\t' + str(codomain) + '\n' +
+                    pformat(codomain, indent=3) + 2 * '\n')
+            else:
+                s += (
+                    'Action type controlled by neither env nor sys\n'
+                    ' (will cause you errors later)'
+                    ', with possible values:\n\t' +
+                    pformat(codomain, indent=3) + 2 * '\n')
+        s += (
+            'Transitions labeled with sys and env actions:\n' +
+            pformat(self.transitions(data=True), indent=3) +
+            '\n' + _hl + '\n')
+        return s
+
+    def set_progress_map(self,prog_map=dict()):
+        """Assign Progress map to the AFTS object
+           @param prog_map: Progress map
+           @type prog_map: dict of type key = action, value = progress_groups,
+                where action is 1) an item in self.sys_actions or 2) a tuple (env_action, sys_action)
+                for env_action in self.env_actions and sys_action in self.sys_actions
+                and progress_groups is either an iterable of states or a list of iterables of states 
+                (the latter allows for multiple progress groups for the same mode)
+
+           In the case with environment actions, if a progress group is added with only a sys_action key,
+           it is treated as a progress group regardless of environment action.
+        """
+        assert(isinstance(prog_map,dict))
+
+        # if initialized with a single set, put it 
+        # into a list of size 1
+        for key in prog_map.iterkeys():
+            if isinstance(prog_map[key], set) or \
+               isinstance(prog_map[key], tuple):
+                prog_map[key] = [set(prog_map[key])]
+
+        # check that modes in prog_map are in states.sys_actions
+        # and that progress groups are in self.states
+        for mode, pgs in prog_map.iteritems():
+            if isinstance(mode,str):
+                if not mode in self.sys_actions:
+                    raise Exception("mode %s not in system" % mode)
+            elif isinstance(mode, tuple):
+                if (not mode[0] in self.env_actions) or (not mode[1] in self.sys_actions):
+                    raise Exception("mode %s not in system" % mode)
+            else:
+                raise SyntaxError("invalid progress group")
+
+            for pg in pgs:
+                if not pg < set(self.states):
+                    raise Exception("progress group %s not in system" % pg)
+        
+        self.progress_map=copy.deepcopy(prog_map)
+
+
+class AFTS(AugmentedFiniteTransitionSystem):
+    """Alias to L{transys.AugmentedOpenFiniteTransitionSystem}
+    """
+    def __init__(self, *args, **kwargs):
+        AugmentedFiniteTransitionSystem.__init__(self, *args, **kwargs)
 
 def tuple2fts(S, S0, AP, L, Act, trans, name='fts',
               prepend_str=None):
@@ -698,15 +813,12 @@ def add_initial_states(ts, ap_labels):
         ts.states.initial |= new_init_states
 
 
-def _dumps_states(g, sort):
+def _dumps_states(g):
     """Dump string of transition system states.
 
     @type g: L{FTS}
     """
-    if sort and natsort is not None:
-        nodes = natsort.natsorted(g)
-    else:
-        nodes = g
+    nodes = g
     a = []
     for u in nodes:
         s = '\t State: {u}, AP: {ap}\n'.format(

@@ -1,4 +1,5 @@
-# Copyright (c) 2011-2014 by California Institute of Technology
+# Copyright (c) 2011-2015 by California Institute of Technology
+# 2014 by The Regents of the University of Michigan
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -12,23 +13,22 @@
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
 # 
-# 3. Neither the name of the California Institute of Technology nor
-#    the names of its contributors may be used to endorse or promote
-#    products derived from this software without specific prior
-#    written permission.
+# 3. Neither the names of copyright holders nor the names of its 
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
 # 
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL CALTECH
-# OR THE CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
-# USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
-# OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH DAMAGE.
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE 
+# COPYRIGHT HOLDER(S) OR THE CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, 
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+# POSSIBILITY OF SUCH DAMAGE.
 #
 """ 
 Check Linear Discrete-Time-Invariant System reachability between polytopes
@@ -49,6 +49,8 @@ from collections import Iterable
 
 import numpy as np
 import polytope as pc
+from cvxopt import matrix, solvers
+lp_solver = 'mosek'
 
 def is_feasible(
     from_region, to_region, sys, N,
@@ -67,13 +69,83 @@ def is_feasible(
     )
     return from_region <= S0
 
+def is_feasible_alternative(
+    from_region, to_region, sys, N,
+):
+    """Return True if to_region is reachable from_region.
+    
+    An alternative implementation of feasibility of transitions via an 
+    open loop policy.
+
+    Supposed to be faster as it does not require set difference
+
+    Conservative for non-convex regions (might say infeasible when feasible)
+    """
+    # solve a set of LP feasibility problems for each corner
+    
+    for f1 in from_region: # from all
+        count = 0
+        for f2 in to_region: # to some
+            for vert in pc.extreme(f1):
+                bad_vert = False
+                u = exists_input(vert, sys, f1, f2, N)
+                if u is None:
+                    bad_vert = True # not possible to reach f2
+                    break
+            if bad_vert == False: # possible to reach to_region from f1
+                count = count+1
+                break
+    if count == len(from_region):
+        res = True
+    else:
+        res = False
+    return res
+
+def exists_input(x0, ssys, P1, P3, N):
+    """Checks if there exists a sequence u_seq such that:
+    - x(t+1) = A x(t) + B u(t) + K
+    - x(k) \in P1 for k = 0,...,N - 1
+    - x(N - 1) \in P3
+    - [u(k); x(k)] \in PU
+
+    See Also
+    ========
+    get_input_helper
+    """
+    n = ssys.A.shape[1]
+    m = ssys.B.shape[1]
+    list_P = []
+    list_P.append(P1)
+    for i in xrange(N-1,0,-1):
+        list_P.append(P1)
+    list_P.append(P3)
+    L,M = createLM(ssys, N, list_P)
+    
+    # Remove first constraint on x(0)
+    L = L[range(list_P[0].A.shape[0], L.shape[0]),:]
+    M = M[range(list_P[0].A.shape[0], M.shape[0]),:]
+    # Separate L matrix
+    Lx = L[:,range(n)]
+    Lu = L[:,range(n,L.shape[1])]
+    M = M - Lx.dot(x0).reshape(Lx.shape[0],1)
+    # Constraints
+    G = matrix(Lu)
+    h = matrix(M)
+    c = matrix(np.zeros(G.size[1], dtype=float))
+    sol = solvers.lp(c, G, h, None, None, lp_solver)
+    if sol['status'] != "optimal":
+        return None
+    else:
+        u = np.array(sol['x']).flatten()
+        return u
+
 def solve_feasible(
     P1, P2, ssys, N=1, closed_loop=True,
     use_all_horizon=False, trans_set=None, max_num_poly=5
 ):
     """Compute S0 \subseteq P1 from which P2 is N-reachable.
     
-    N-reachable = reachable in horizon n.
+    N-reachable = reachable within horizon N.
     The system dynamics are C{ssys}.
     The closed-loop algorithm solves for one step at a time,
     which keeps the dimension of the polytopes down.
@@ -87,8 +159,9 @@ def solve_feasible(
         handles disturbances better.
     @type closed_loop: bool
     
-    @param use_all_horizon: Used for closed loop algorithm.
-        If true, then allow reachability also in less than N steps.
+    @param use_all_horizon: Used for closed loop algorithm.  If true
+        (STILL UNDER DEVELOPMENT, CURRENTLY UNAVAILABLE), then allow
+        reachability also in less than N steps.
     @type use_all_horizon: bool
     
     @param trans_set: If specified,
@@ -98,6 +171,10 @@ def solve_feasible(
     @return: the subset S0 of P1 from which P2 is reachable
     @rtype: C{Polytope} or C{Region}
     """
+    if use_all_horizon:
+        raise ValueError('solve_feasible() with use_all_horizon=True is still '
+                         'under development\nand currently unavailable.')
+
     if closed_loop:
         return solve_closed_loop(
             P1, P2, ssys, N,
@@ -136,6 +213,11 @@ def solve_closed_loop(
         
         Otherwise, P1 is used.
     """
+    if use_all_horizon:
+        raise ValueError('solve_closed_loop() with use_all_horizon=True '
+                         'is still under development\nand currently '
+                         'unavailable.')
+
     p1 = P1.copy() # Initial set
     p2 = P2.copy() # Terminal set
     
@@ -270,7 +352,7 @@ def createLM(ssys, N, list_P, Pk=None, PN=None, disturbance_ind=None):
       - x(k) \in list_P[k] for k= 0, 1 ... N
     
     The returned polytope describes the intersection of the polytopes
-    for all possible
+    for all possible inputs.
 
     @param ssys: system dynamics
     @type ssys: L{LtiSysDyn}

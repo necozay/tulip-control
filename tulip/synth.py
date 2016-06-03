@@ -1,4 +1,5 @@
-# Copyright (c) 2012-2014 by California Institute of Technology
+# Copyright (c) 2012-2015 by California Institute of Technology
+# and 2014 The Regents of the University of Michigan
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,14 +33,19 @@
 """Interface to library of synthesis tools, e.g., JTLV, gr1c"""
 from __future__ import absolute_import
 import logging
-logger = logging.getLogger(__name__)
 import copy
 import warnings
 from tulip import transys
 from tulip.spec import GRSpec
-from tulip.interfaces import jtlv, gr1c
+from tulip.interfaces import jtlv, gr1c, gr1py
+from tulip.interfaces import omega as omega_int
+try:
+    from tulip.interfaces import slugs
+except ImportError:
+    slugs = None
 
 
+logger = logging.getLogger(__name__)
 _hl = '\n' + 60 * '-'
 
 
@@ -209,7 +215,7 @@ def iter2var(states, variables, statevar, bool_states, must):
     If the values are not mutually exclusive,
     then only Boolean variables can represent them.
 
-    Suppose N ossible values are defined.
+    Suppose N possible values are defined.
     The int variable is allowed to take N+1 values.
     The additional value corresponds to all, e.g., actions, being False.
 
@@ -233,7 +239,7 @@ def iter2var(states, variables, statevar, bool_states, must):
     @param variables: to be augmented with integer or string variable
         or Boolean variables.
 
-    @param statevar: name to use for integer or string valued variabe.
+    @param statevar: name to use for integer or string valued variable.
     @type statevar: C{str}
 
     @param bool_states: if True, then use bool variables.
@@ -968,7 +974,7 @@ def synthesize_many(specs, ts=None, ignore_init=None,
 
     @type bool_actions: C{set} of keys from C{ts}
 
-    @param solver: 'gr1c' or 'jtlv'
+    @param solver: 'gr1c' or 'slugs' or 'jtlv'
     @type solver: str
     """
     assert isinstance(ts, dict)
@@ -985,11 +991,16 @@ def synthesize_many(specs, ts=None, ignore_init=None,
                                  bool_actions=bool_act)
     if solver == 'gr1c':
         ctrl = gr1c.synthesize(specs)
+    elif solver == 'slugs':
+        if slugs is None:
+            raise ValueError('Import of slugs interface failed. ' +
+                             'Please verify installation of "slugs".')
+        ctrl = slugs.synthesize(specs)
     elif solver == 'jtlv':
         ctrl = jtlv.synthesize(specs)
     else:
         raise Exception('Unknown solver: ' + str(solver) + '. '
-                        'Available solvers: "jtlv" and "gr1c"')
+                        'Available solvers: "jtlv", "gr1c", and "slugs"')
     try:
         logger.debug('Mealy machine has: n = ' +
                      str(len(ctrl.states)) + ' states.')
@@ -1028,8 +1039,24 @@ def synthesize(
     @param option: Magic string that declares what tool to invoke,
         what method to use, etc.  Currently recognized forms:
 
-          - C{"gr1c"}: use gr1c for GR(1) synthesis via L{interfaces.gr1c}.
-          - C{"jtlv"}: use JTLV for GR(1) synthesis via L{interfaces.jtlv}.
+        For GR(1) synthesis:
+
+          - C{"gr1c"}: use gr1c via L{interfaces.gr1c}.
+            written in C using CUDD, symbolic
+
+          - C{"gr1py"}: use gr1py via L{interfaces.gr1py}.
+            Python, enumerative
+
+          - C{"omega"}: use omega via L{interfaces.omega}.
+            Python using C{dd} or Cython using CUDD, symbolic
+
+          - C{"slugs"}: use slugs via L{interfaces.slugs}.
+            C++ using CUDD, symbolic
+
+          - C{"jtlv"}: use JTLV via L{interfaces.jtlv}.
+            Java, symbolic
+            (deprecated)
+
     @type specs: L{spec.GRSpec}
 
     @param env: A transition system describing the environment:
@@ -1052,13 +1079,13 @@ def synthesize(
 
     @type sys: L{FTS}
 
-    @param ignore_sys_init: Ignore any initial state information
-        contained in env.
-    @type ignore_sys_init: bool
-
     @param ignore_env_init: Ignore any initial state information
-        contained in sys.
+        contained in env.
     @type ignore_env_init: bool
+
+    @param ignore_sys_init: Ignore any initial state information
+        contained in sys.
+    @type ignore_sys_init: bool
 
     @param bool_states: deprecated as inefficient
 
@@ -1087,26 +1114,39 @@ def synthesize(
         bool_actions)
     if option == 'gr1c':
         strategy = gr1c.synthesize(specs)
+    elif option == 'slugs':
+        if slugs is None:
+            raise ValueError('Import of slugs interface failed. ' +
+                             'Please verify installation of "slugs".')
+        strategy = slugs.synthesize(specs)
+    elif option == 'gr1py':
+        strategy = gr1py.synthesize(specs)
+    elif option == 'omega':
+        strategy = omega_int.synthesize_enumerated_streett(specs)
     elif option == 'jtlv':
         strategy = jtlv.synthesize(specs)
+        if isinstance(strategy, list):
+            # Discard counter-examples, because here we only care that
+            # it is not realizable.
+            strategy = None
     else:
         raise Exception('Undefined synthesis option. ' +
-                        'Current options are "jtlv" and "gr1c"')
-    ctrl = strategy2mealy(strategy, specs)
-    try:
-        logger.debug('Mealy machine has: n = ' +
-                     str(len(ctrl.states)) + ' states.')
-    except:
-        logger.debug('No Mealy machine returned.')
-    # no controller found ?
-    # exploring unrealizability with counterexamples or other means
-    # can be done by calling a dedicated other function, not this
-    if not isinstance(ctrl, transys.MealyMachine):
+                        'Current options are "gr1c", ' +
+                        '"slugs", "gr1py", "omega", and "jtlv".')
+
+    # While the return values of the solver interfaces vary, we expect
+    # here that strategy is either None to indicate unrealizable or a
+    # networkx.DiGraph ready to be passed to strategy2mealy().
+    if strategy is None:
         return None
+
+    ctrl = strategy2mealy(strategy, specs)
+    logger.debug('Mealy machine has: n = ' +
+                 str(len(ctrl.states)) + ' states.')
+
     if rm_deadends:
         ctrl.remove_deadends()
     return ctrl
-
 
 def is_realizable(
     option, specs, env=None, sys=None,
@@ -1124,11 +1164,19 @@ def is_realizable(
         bool_states, bool_actions)
     if option == 'gr1c':
         r = gr1c.check_realizable(specs)
+    elif option == 'slugs':
+        if slugs is None:
+            raise ValueError('Import of slugs interface failed. ' +
+                             'Please verify installation of "slugs".')
+        r = slugs.check_realizable(specs)
+    elif option == 'gr1py':
+        r = gr1py.check_realizable(specs)
     elif option == 'jtlv':
         r = jtlv.check_realizable(specs)
     else:
         raise Exception('Undefined synthesis option. ' +
-                        'Current options are "jtlv" and "gr1c"')
+                        'Current options are "jtlv", "gr1c", ' +
+                        '"slugs", and "gr1py"')
     if r:
         logger.debug('is realizable')
     else:
@@ -1148,13 +1196,17 @@ def _spec_plus_sys(
             logger.info('sys.state_varname undefined. '
                         'Will use the default variable name: "loc".')
             statevar = 'loc'
+
+        # add system formula
         sys_formula = sys_to_spec(
             sys, ignore_sys_init,
             bool_states=bool_states,
             bool_actions=bool_actions,
             statevar=statevar)
+
         specs = specs | sys_formula
         logger.debug('sys TS:\n' + str(sys_formula.pretty()) + _hl)
+
     if env is not None:
         if hasattr(env, 'state_varname'):
             statevar = sys.state_varname
@@ -1162,12 +1214,40 @@ def _spec_plus_sys(
             logger.info('env.state_varname undefined. '
                         'Will use the default variable name: "eloc".')
             statevar = 'eloc'
+
+        # add environment formula (transitions)
         env_formula = env_to_spec(
             env, ignore_env_init,
             bool_states=bool_states,
             bool_actions=bool_actions,
             statevar=statevar)
         specs = specs | env_formula
+
+        # add progress group information to env_formula
+        if isinstance(env, transys.AugmentedFiniteTransitionSystem):
+
+            # unpack progress group into mode - pg pairs
+
+            # progress groups defined over sys_actions
+            mode_pg1 = sum(
+                          [ [ ('(sys_actions != "%s")' % action, ['(eloc != "%s")' % s for s in pg]) \
+                            for pg in pgs] \
+                            for action, pgs in env.progress_map.iteritems() if isinstance(action, str)], \
+                          [])
+
+            # progress groups defined over a (env_action, sys_action) pair
+            mode_pg2 = sum(
+                          [ [ ('(env_actions != "%s" || sys_actions != "%s")' % (action[0], action[1]), ['(eloc != "%s")' % s for s in pg]) \
+                            for pg in pgs] \
+                            for action, pgs in env.progress_map.iteritems() if isinstance(action, tuple)], \
+                          [])
+
+            # join them together
+            prog_spec = set(['( ' + a + ' || ( ' + ' & '.join(b) + ' ) )' for a,b, in mode_pg1 + mode_pg2])
+            env_prog = GRSpec(env_prog=prog_spec)
+            
+            specs = specs | env_prog
+
         logger.debug('env TS:\n' + str(env_formula.pretty()) + _hl)
     logger.info('Overall Spec:\n' + str(specs.pretty()) + _hl)
     return specs
@@ -1185,10 +1265,7 @@ def strategy2mealy(A, spec):
 
     @type spec: L{GRSpec}
 
-    @return: tuple of the form (L{GRSpec}, L{MealyMachine}).  Either
-        or both can be None if the corresponding part is missing.
-        Note that the returned GRSpec instance depends only on what is
-        in the given tulipcon XML string x, not on the argument spec0.
+    @rtype: L{MealyMachine}
     """
     logger.info('converting strategy (compact) to Mealy machine')
     env_vars = spec.env_vars
@@ -1226,7 +1303,6 @@ def strategy2mealy(A, spec):
     except:
         logger.warn('strategy has no states.')
     # to store tuples of dict values for fast search
-    spec.str_to_int()
     isinit = spec.compile_init(no_str=True)
     # Mealy reaction to initial env input
     init_valuations = set()
@@ -1264,7 +1340,7 @@ def strategy2mealy(A, spec):
 def _int2str(label, str_vars):
     """Replace integers with string values for string variables.
 
-    @param: mapping from variable names, to integer (as strings)
+    @param label: mapping from variable names, to integer (as strings)
     @type label: C{dict}
 
     @param str_vars: mapping that defines those variables that
@@ -1376,7 +1452,7 @@ def determinize_machine_init(mach, init_out_values=None):
         init_out_values = dict()
     '''determinize given outputs (uncontrolled)'''
     # restrict attention to given output ports only
-    given_ports = tuple(k for k in mach.outputs if k in init_out_values)
+    given_ports = tuple(k for k in mach.outputs if k in init_out_values) #MS added ".values()"
     rm_edges = set()
     for i, j, key, d in mach.edges_iter(['Sinit'], data=True, keys=True):
         for k in given_ports:

@@ -182,7 +182,7 @@ The specification of the robot is
    \wedge \square(park \implies \diamond(s \in C_0))).
 
 We cannot, however, deal with this specification directly since it is not in
-the form of GR[1].  An equivalent GR[1] specification of the above
+the form of GR(1).  An equivalent GR(1) specification of the above
 specification can be obtained by introducing an auxiliary discrete system
 variable :math:`X0reach,` initialized to `True`. The transition relation of
 :math:`X0reach,` is given by :math:`\square(\text{next}(X0reach) = (s \in
@@ -301,8 +301,8 @@ as in the previous example.
 
 Next, we specify the continuous dynamics.  This includes specifying the
 continuous state space, propositions on continuous variables, and the
-dynamics.  The robot dynamics in this case is :math:`\dot{x} = u_x, \dot{y}
-= u_y.`
+dynamics.  The robot dynamics in this case is :math:`\dot{x} = u_x + 5d_x, 
+\dot{y} = u_y + 5d_y,` discretized with a sampling time of 0.2.
 
 .. literalinclude:: ../examples/robot_planning/continuous.py
    :start-after: @dynamics_section@
@@ -321,8 +321,7 @@ state space and discretize the continuous state space based on the dynamics.
 
 The rest is the same as in the previous example.  We specify the
 environment, create a GR(1) system specification, and synthesize a
-controller.  Here we use the JTLV synthesis tool, which returns a counter
-example if no controller can be found:
+controller.
 
 .. literalinclude:: ../examples/robot_planning/continuous.py
    :start-after: @synthesize_section@

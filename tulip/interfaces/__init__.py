@@ -1,4 +1,4 @@
-# Copyright (c) 2014 by California Institute of Technology
+# Copyright (c) 2014, 2015 by California Institute of Technology
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
-"""
-Interfaces subpackage
-"""
+"""Minimal bindings to external entities"""
 from __future__ import absolute_import
 from . import gr1c as gr1cint
 from . import jtlv as jtlvint

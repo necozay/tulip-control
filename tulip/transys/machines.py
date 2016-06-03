@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014 by California Institute of Technology
+# Copyright (c) 2013-2015 by California Institute of Technology
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,14 +34,14 @@ from __future__ import absolute_import
 import copy
 from pprint import pformat
 from random import choice
+import itertools
 from tulip.transys.labeled_graphs import LabeledDiGraph
-
 # inline imports:
 #
 # from tulip.transys.export import machine2scxml
 
-_hl = 40 * '-'
 
+_hl = 40 * '-'
 # port type
 pure = {'present', 'absent'}
 
@@ -496,7 +496,7 @@ class MealyMachine(Transducer):
                 mask_func = masks[port_name]
                 self._transition_dot_mask[port_name] = mask_func
 
-    def reaction(self, from_state, inputs):
+    def reaction(self, from_state, inputs, lazy=False):
         """Return next state and output, when reacting to given inputs.
 
         The machine must be deterministic.
@@ -513,25 +513,63 @@ class MealyMachine(Transducer):
         @param inputs: C{dict} assigning a valid value to each input port.
         @type inputs: {'port_name':port_value, ...}
 
+        @param lazy: Lazy evaluation of inputs? If lazy=True, then
+            allow an incomplete specification of input if there is
+            precisely one enabled transition.
+        @type lazy: bool
+
         @return: output values and next state.
         @rtype: (outputs, next_state)
           where C{outputs}: C{{'port_name':port_value, ...}}
         """
+        if lazy:
+            restricted_inputs = set(self.inputs).intersection(inputs.keys())
+        else:
+            restricted_inputs = self.inputs
         # match only inputs (explicit valuations, not symbolic)
         enabled_trans = [
             (i, j, d)
             for i, j, d in self.edges_iter([from_state], data=True)
-            if project_dict(d, self.inputs) == inputs]
+            if project_dict(d, restricted_inputs) == inputs]
+
+        if len(enabled_trans) == 0:
+            some_possibilities = []
+            for i, j, d in self.edges_iter([from_state], data=True):
+                # The number of possible inputs to suggest here is
+                # arbitrary. Consider making it a function parameter.
+                if len(some_possibilities) >= 5:
+                    break
+                possible_inputs = project_dict(d, restricted_inputs)
+                if possible_inputs not in some_possibilities:
+                    some_possibilities.append(possible_inputs)
+
         # must be deterministic
         try:
             ((_, next_state, attr_dict), ) = enabled_trans
         except ValueError:
-            raise Exception(
-                'must be input-deterministic, '
-                'found enabled transitions: '
-                '{t}'.format(t=enabled_trans))
+            if len(enabled_trans) == 0:
+                if len(some_possibilities) == 0:
+                    raise Exception(
+                        'state {from_state} is a dead-end. '
+                        'There are no possible inputs from '
+                        'it.'.format(from_state=from_state))
+                else:
+                    raise Exception(
+                        'not a valid input, '
+                        'some possible inputs include: '
+                        '{t}'.format(t=some_possibilities))
+            else:
+                raise Exception(
+                    'must be input-deterministic, '
+                    'found enabled transitions: '
+                    '{t}'.format(t=enabled_trans))
         outputs = project_dict(attr_dict, self.outputs)
         return (next_state, outputs)
+
+    def reactionpart(self, from_state, inputs):
+        """Wraps reaction() with lazy=True
+        """
+        return self.reaction(from_state, inputs, lazy=True)
 
     def run(self, from_state=None, input_sequences=None):
         """Guided or interactive run.
@@ -546,95 +584,6 @@ class MealyMachine(Transducer):
         else:
             return guided_run(self, from_state=from_state,
                               input_sequences=input_sequences)
-
-
-# note on non-determinism and simulation:
-# =====
-#
-# Transducers here have deterministic semantics,
-# even if the exist non-deterministic choices of
-# After all, this turns out to be the essentialy distinction
-# between a non-deterministic game graph (generator) and
-# a machine (transducer).
-# (Modulo some graph and labeling transformations.)
-#
-# A Game Graph (or a transition system if only one player exists,
-# so no partition on the states accompanies the labeled directed graph)
-# is a generator, which takes "all possible transitions".
-# Same for acceptors, in which case the resulting language is filtered
-# by the accepting condition, to yield the language
-# represented by the acceptor.
-#
-# In other words: syntactically they are more or less the same,
-# but semantically they are different.
-# Therefore the methods or functions that manipulate them differ,
-# because they involve their semantics.
-#
-# A possible alternative in the future would be to
-#   - raise an exception in case of non-determinism
-#   - unless the user explicitly allows non-determinism
-# In the latter case, machine non-determinism is resolved
-# arbitrarily during simulation.
-# I think this would correspond to what happens to random simulation
-# in SPIN also.
-
-# note on impossibility to simulate non-deterministic machine
-# =====
-#
-# It is currently impossible to simulate a non-deterministic machine.
-# A non-deterministic machine represents a set of transducers that
-# are all valid solutions to the synthesis problem.
-#
-# But because the semantics of real-world execution require that only
-# a single trace be produced (so resolve the non-determinism in an
-# arbitrary way), this use is discouraged.
-#
-# In the future, such an option could be added.
-# However, it may be a bad design approach.
-# Instead, since a non-deterministic machine is a set of satisfying models
-# (= solutions), a better approach would be to first fix one deterministic
-# alternative as the desired solution, then simulate it.
-#
-# Finally there also exists the issue of initial condition interpretation.
-# Formally, if the initial condition of sys is interpreted as an env var,
-# then after we learn the initial system state of the particular instance
-# that will be simulated, a deterministic transducer should be obtained
-# with only that state as initial, then simulated.
-#
-# A possible alternative in the future would be to
-# allow for initial system state
-# non-determinism, but require that the initial system state be passed as
-# an argument in this case.
-
-
-# note on dict of lists vs list of dicts
-# =====
-#
-# Typically there are few ports but many time indices
-# so checking for equal len of all input sequences is cheaper
-# than checking no port is missing for each dict in a list of dicts over time.
-#
-# Also less memory is needed (one dict of a few lists of 1000 items each,
-#   not 1000 dicts with the same keys of a few items each)
-#
-# Absent inputs at certain times can still be represented,
-# by explicictly assigning them the value None.
-# This avoids mistakes (explicit better than inplicit, cf Zen of Python)
-# and ensures uniformity in the data structure (no absent terms)
-#
-# Also, the dict of lists representation is friendly for adding/removing
-# ports. This may prove convenient if working with a network of machines.
-# For example splitting many output sequences
-# to become inputs for other machines.
-
-# note on terminology
-# =====
-#
-# The term "simulation" is ambiguous and not used any more:
-#
-# 1. it is too general
-# 2. it is dangerous, because it has also another meaning in this context
-# 3. "run" is also wrongly used here (i.e., more than the sequence )
 
 
 def guided_run(mealy, from_state=None, input_sequences=None):

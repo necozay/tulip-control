@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014 by California Institute of Technology
+# Copyright (c) 2013-2015 by California Institute of Technology
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,3 @@
 # SUCH DAMAGE.
 """Export functions for labeled graphs to various file formats.
 """
-#from .graph2dot import graph2dot_str, save_dot, plot_pydot
-#from .graph2promela import fts2promela
-#from .machine2scxml import mealy2scxml
-#from .save_d3 import labeled_digraph2d3
