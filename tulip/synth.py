@@ -33,19 +33,19 @@
 """Interface to library of synthesis tools, e.g., JTLV, gr1c"""
 from __future__ import absolute_import
 import logging
-logger = logging.getLogger(__name__)
 import copy
 import warnings
 from tulip import transys
 from tulip.spec import GRSpec
 from tulip.interfaces import jtlv, gr1c, gr1py
-# slugs is an optional dependency, so fail cleanly if it is missing.
+from tulip.interfaces import omega as omega_int
 try:
     from tulip.interfaces import slugs
 except ImportError:
     slugs = None
 
 
+logger = logging.getLogger(__name__)
 _hl = '\n' + 60 * '-'
 
 
@@ -1039,10 +1039,24 @@ def synthesize(
     @param option: Magic string that declares what tool to invoke,
         what method to use, etc.  Currently recognized forms:
 
-          - C{"gr1c"}: use gr1c for GR(1) synthesis via L{interfaces.gr1c}.
-          - C{"slugs"}: use slugs for GR(1) synthesis via L{interfaces.slugs}.
-          - C{"gr1py"}: use JTLV for GR(1) synthesis via L{interfaces.gr1py}.
-          - C{"jtlv"}: use JTLV for GR(1) synthesis via L{interfaces.jtlv}.
+        For GR(1) synthesis:
+
+          - C{"gr1c"}: use gr1c via L{interfaces.gr1c}.
+            written in C using CUDD, symbolic
+
+          - C{"gr1py"}: use gr1py via L{interfaces.gr1py}.
+            Python, enumerative
+
+          - C{"omega"}: use omega via L{interfaces.omega}.
+            Python using C{dd} or Cython using CUDD, symbolic
+
+          - C{"slugs"}: use slugs via L{interfaces.slugs}.
+            C++ using CUDD, symbolic
+
+          - C{"jtlv"}: use JTLV via L{interfaces.jtlv}.
+            Java, symbolic
+            (deprecated)
+
     @type specs: L{spec.GRSpec}
 
     @param env: A transition system describing the environment:
@@ -1107,6 +1121,8 @@ def synthesize(
         strategy = slugs.synthesize(specs)
     elif option == 'gr1py':
         strategy = gr1py.synthesize(specs)
+    elif option == 'omega':
+        strategy = omega_int.synthesize_enumerated_streett(specs)
     elif option == 'jtlv':
         strategy = jtlv.synthesize(specs)
         if isinstance(strategy, list):
@@ -1115,8 +1131,8 @@ def synthesize(
             strategy = None
     else:
         raise Exception('Undefined synthesis option. ' +
-                        'Current options are "jtlv", "gr1c", ' +
-                        '"slugs", and "gr1py"')
+                        'Current options are "gr1c", ' +
+                        '"slugs", "gr1py", "omega", and "jtlv".')
 
     # While the return values of the solver interfaces vary, we expect
     # here that strategy is either None to indicate unrealizable or a
