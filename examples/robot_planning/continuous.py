@@ -21,18 +21,18 @@ logging.basicConfig(level=logging.INFO)
 
 # @import_section@
 import numpy as np
-
+import polytope as pc
 from tulip import spec, synth, hybrid
 from polytope import box2poly
 from tulip.abstract import prop2part, discretize
 from tulip.abstract.plot import plot_partition
+from tulip.abstract.find_controller import *
 # @import_section_end@
-
 show = False
 
 # @dynamics_section@
 # Problem parameters
-input_bound = 1.0
+input_bound = 100.0
 uncertainty = 0.01
 
 # Continuous state space
@@ -141,7 +141,7 @@ for i in range(0,T):
             disc_dynamics,
             s0_part,
             disc_dynamics.ppp2ts.index(dum['loc']),
-            mid_weight=100.0,
+            mid_weight=5,
             test_result=False)
     for ind in range(N):
         s_now = np.dot(
