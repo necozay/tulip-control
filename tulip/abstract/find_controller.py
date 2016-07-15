@@ -46,13 +46,24 @@ L{discretize}
 """
 from __future__ import absolute_import
 
+import logging
 import numpy as np
 from cvxopt import matrix, solvers
-solvers.options['msg_lev'] = 'GLP_MSG_OFF'
 
 import polytope as pc
 
 from .feasible import solve_feasible, createLM, _block_diag2
+
+
+logger = logging.getLogger(__name__)
+try:
+    import cvxopt.glpk
+except ImportError:
+    logger.warn(
+        '`tulip` failed to import `cvxopt.glpk`.\n'
+        'Will use Python solver of `cvxopt`.')
+solvers.options['msg_lev'] = 'GLP_MSG_OFF'
+
 
 def get_input(
     x0, ssys, abstraction,
@@ -60,6 +71,7 @@ def get_input(
     R=[], r=[], Q=[], mid_weight=0.0,
     test_result=False
 ):
+    print 'Yunus'
     """Compute continuous control input for discrete transition.
     
     Computes a continuous control input sequence
@@ -198,7 +210,7 @@ def get_input(
     if ofts is not None:
         start_state = start
         end_state = end
-        
+        print 'end_state: ', end_state
         if end_state not in ofts.states.post(start_state):
             raise Exception('get_input: '
                 'no transition from state s' +str(start) +
@@ -228,7 +240,7 @@ def get_input(
                 # Take convex hull
                 vert = pc.extreme(P_start[0])
                 for i in range(1, len(P_start)):
-                    vert = np.hstack([
+                    vert = np.vstack([
                         vert,
                         pc.extreme(P_start[i])
                     ])

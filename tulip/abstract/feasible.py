@@ -171,9 +171,9 @@ def solve_feasible(
     @return: the subset S0 of P1 from which P2 is reachable
     @rtype: C{Polytope} or C{Region}
     """
-    if use_all_horizon:
-        raise ValueError('solve_feasible() with use_all_horizon=True is still '
-                         'under development\nand currently unavailable.')
+#    if use_all_horizon:
+#        raise ValueError('solve_feasible() with use_all_horizon=True is still '
+#                         'under development\nand currently unavailable.')
 
     if closed_loop:
         return solve_closed_loop(
@@ -213,10 +213,10 @@ def solve_closed_loop(
         
         Otherwise, P1 is used.
     """
-    if use_all_horizon:
-        raise ValueError('solve_closed_loop() with use_all_horizon=True '
-                         'is still under development\nand currently '
-                         'unavailable.')
+    # if use_all_horizon:
+    #     raise ValueError('solve_closed_loop() with use_all_horizon=True '
+    #                      'is still under development\nand currently '
+    #                      'unavailable.')
 
     p1 = P1.copy() # Initial set
     p2 = P2.copy() # Terminal set
@@ -235,8 +235,13 @@ def solve_closed_loop(
             Pinit = p1
         
         p2 = solve_open_loop(Pinit, p2, ssys, 1, trans_set)
-        s0 = s0.union(p2, check_convex=True)
-        s0 = pc.reduce(s0)
+
+        if use_all_horizon:
+            s0 = s0.union(p2, check_convex=True)
+            s0 = pc.reduce(s0)
+        else:
+            p2 = pc.reduce(p2)
+            s0 = p2
         
         # empty target polytope ?
         if not pc.is_fulldim(p2):
@@ -245,9 +250,9 @@ def solve_closed_loop(
         old_reached = reached
         
         # overlaps initial set ?
-        if p1.intersect(p2):
-            s0 = s0.union(p2, check_convex=True)
-            s0 = pc.reduce(s0)
+        # if p1.intersect(p2):
+        #    s0 = s0.union(p2, check_convex=True)
+        #    s0 = pc.reduce(s0)
         
         # we went past it -> don't continue
         if old_reached is True and reached is False:

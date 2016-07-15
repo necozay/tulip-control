@@ -21,18 +21,18 @@ logging.basicConfig(level=logging.INFO)
 
 # @import_section@
 import numpy as np
-
+import polytope as pc
 from tulip import spec, synth, hybrid
 from polytope import box2poly
 from tulip.abstract import prop2part, discretize
 from tulip.abstract.plot import plot_partition
+from tulip.abstract.find_controller import *
 # @import_section_end@
-
 show = False
 
 # @dynamics_section@
 # Problem parameters
-input_bound = 1.0
+input_bound = 100.0
 uncertainty = 0.01
 
 # Continuous state space
@@ -69,7 +69,8 @@ plot_partition(cont_partition) if show else None
 # @discretize_section@
 # Given dynamics & proposition-preserving partition, find feasible transitions
 disc_dynamics = discretize(
-    cont_partition, sys_dyn, closed_loop=True,
+    cont_partition, sys_dyn, closed_loop=False,
+    conservative=True,
     N=8, min_cell_volume=0.1, plotit=show
 )
 # @discretize_section_end@
@@ -107,3 +108,56 @@ ctrl = synth.synthesize('gr1c', specs,
 # @synthesize_section_end@
 
 # Simulation
+
+print '\n Simulation starts \n'
+T = 100;
+
+# let us pick an environment signal
+# from: http://code.activestate.com/recipes/577944-random-binary-list/
+
+from random import *
+randParkSignal = [randint(0,1) for b in range(1,T+1)]
+
+# initialization is a bit hacky (need to be consistent with ctrl init
+# states)
+
+s0_part = ctrl[ctrl.edges('Sinit')[1][0]][ctrl.edges('Sinit')[1][1]][0]['loc']
+
+init_poly_v = pc.extreme(disc_dynamics.ppp[s0_part][0])
+x_init = sum(init_poly_v)/init_poly_v.shape[0]
+x = [x_init[0]]
+y = [x_init[1]]
+
+N = disc_dynamics.disc_params['N']
+s0_part = find_discrete_state([x[0],y[0]],disc_dynamics.ppp)
+ctrl = synth.determinize_machine_init(ctrl, {'loc':s0_part})
+(s, dum) = ctrl.reaction('Sinit', {'park':randParkSignal[0]})
+print dum,'\n'
+for i in range(0,T):
+    (s, dum) = ctrl.reaction(s, {'park':randParkSignal[i]})
+    u = get_input(
+            np.array([x[i*N],y[i*N]]),
+            sys_dyn,
+            disc_dynamics,
+            s0_part,
+            disc_dynamics.ppp2ts.index(dum['loc']),
+            mid_weight=5,
+            test_result=False)
+    for ind in range(N):
+        s_now = np.dot(
+                    sys_dyn.A, [x[-1],y[-1]]
+                    ) + np.dot(sys_dyn.B,u[ind])
+        x.append(s_now[0])
+        y.append(s_now[1])
+
+    s0_part = find_discrete_state([x[-1],y[-1]],disc_dynamics.ppp)
+    s0_loc = disc_dynamics.ppp2ts[s0_part]
+    print s0_loc, dum['loc']
+    print dum,'\n'
+
+show_traj = True
+if show_traj:
+    import matplotlib.pyplot as plt
+    plt.plot(x)
+    plt.plot(y)
+    plt.show()
