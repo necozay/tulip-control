@@ -71,7 +71,6 @@ def get_input(
     R=[], r=[], Q=[], mid_weight=0.0,
     test_result=False
 ):
-    print 'Yunus'
     """Compute continuous control input for discrete transition.
     
     Computes a continuous control input sequence
@@ -210,7 +209,7 @@ def get_input(
     if ofts is not None:
         start_state = start
         end_state = end
-        print 'end_state: ', end_state
+        
         if end_state not in ofts.states.post(start_state):
             raise Exception('get_input: '
                 'no transition from state s' +str(start) +
