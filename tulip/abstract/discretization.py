@@ -601,9 +601,9 @@ def discretize(
     
     @rtype: L{AbstractPwa}
     """
-    if use_all_horizon:
-        raise ValueError('discretize() with use_all_horizon=True is still '
-                         'under development\nand currently unavailable.')
+    # if use_all_horizon:
+    #    raise ValueError('discretize() with use_all_horizon=True is still '
+    #                     'under development\nand currently unavailable.')
 
     start_time = os.times()[0]
     
@@ -692,6 +692,8 @@ def discretize(
         except:
             logger.error('failed to import matplotlib')
             plt = None
+    else:
+        plt = None
         
     iter_count = 0
     

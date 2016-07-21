@@ -171,9 +171,9 @@ def solve_feasible(
     @return: the subset S0 of P1 from which P2 is reachable
     @rtype: C{Polytope} or C{Region}
     """
-#    if use_all_horizon:
-#        raise ValueError('solve_feasible() with use_all_horizon=True is still '
-#                         'under development\nand currently unavailable.')
+    # if use_all_horizon:
+    #     raise ValueError('solve_feasible() with use_all_horizon=True is still '
+    #                      'under development\nand currently unavailable.')
 
     if closed_loop:
         return solve_closed_loop(
@@ -182,6 +182,9 @@ def solve_feasible(
             trans_set=trans_set
         )
     else:
+        if use_all_horizon:
+            raise ValueError('solve_feasible() with use_all_horizon=True has no '
+                             'effect with closed_loop=False.')
         return solve_open_loop(
             P1, P2, ssys, N,
             trans_set=trans_set,
